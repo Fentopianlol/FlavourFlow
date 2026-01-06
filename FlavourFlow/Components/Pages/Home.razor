@@ -19,9 +19,18 @@
             <span>FlavorFlow Explorer</span>
         </div>
         <nav>
-            <a href="#" class="active">Explore</a>
-            <a href="#saved">Saved</a>
-            <a href="#profile">Profile</a>
+            <NavLink href="" Match="NavLinkMatch.All" class="nav-link">Explore</NavLink>
+            
+            <NavLink href="saved" class="nav-link">Saved</NavLink>
+
+            <AuthorizeView>
+                <Authorized>
+                    <NavLink href="profile" class="nav-link">Profile</NavLink>
+                </Authorized>
+                <NotAuthorized>
+                    <NavLink href="login" class="nav-link">Log In</NavLink>
+                </NotAuthorized>
+            </AuthorizeView>
         </nav>
     </header>
 
