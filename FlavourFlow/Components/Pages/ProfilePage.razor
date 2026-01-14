@@ -1,0 +1,146 @@
+﻿@page "/profile"
+
+<div class="profile-wrapper">
+    <nav class="nav-bar">
+        <div class="logo">
+            <i class="fas fa-utensils"></i> FlavorFlow
+        </div>
+        <div class="nav-links">
+            <a>Explore</a>
+            <a>Saved</a>
+            <a class="active">Profile</a>
+        </div>
+    </nav>
+
+    <div class="container">
+        <section class="profile-header">
+            <div class="user-card">
+                <div class="user-avatar" style="background-image: url('@UserProfile.AvatarUrl');"></div>
+                <h2>@UserProfile.Name</h2>
+                <p>@UserProfile.Email</p>
+                <button class="btn-edit">Edit profile</button>
+            </div>
+
+            <div class="stats-container">
+                <div class="stat-card saved">
+                    <div class="stat-label">Saved Recipes</div>
+                    <div class="stat-number">@UserProfile.SavedCount</div>
+                </div>
+                <div class="stat-card tried">
+                    <div class="stat-label">Recipes Tried</div>
+                    <div class="stat-number">@UserProfile.TriedCount</div>
+                </div>
+            </div>
+        </section>
+
+        <div class="favorites-section">
+            <div class="section-title">My favorites</div>
+
+            <div class="recipe-grid">
+                @foreach (var recipe in FavoriteRecipes)
+                {
+                    <div class="recipe-card">
+                        <div class="card-image" style="background-color: @recipe.BgColor;">
+                            <span class="time-tag">@recipe.Time min</span>
+                            <i class="@recipe.IconClass" style="color: @recipe.IconColor;"></i>
+                        </div>
+                        <div class="card-meta">
+                            <div class="cuisine-type">@recipe.Cuisine</div>
+                            <h3 class="card-title">@recipe.Title</h3>
+                            <div class="rating">
+                                <i class="fas fa-star"></i> @recipe.Rating
+                            </div>
+                            <span class="tag-pill">@recipe.Tag</span>
+                        </div>
+                    </div>
+                }
+            </div>
+        </div>
+    </div>
+</div>
+
+@code {
+    // 1. Data Models
+    public class UserData
+    {
+        public string Name { get; set; } = "";
+        public string Email { get; set; } = "";
+        public string AvatarUrl { get; set; } = "";
+        public int SavedCount { get; set; }
+        public int TriedCount { get; set; }
+    }
+
+    public class Recipe
+    {
+        public string Title { get; set; } = "";
+        public string Cuisine { get; set; } = "";
+        public int Time { get; set; }
+        public double Rating { get; set; }
+        public string Tag { get; set; } = "";
+        public string BgColor { get; set; } = ""; // For the card background
+        public string IconClass { get; set; } = ""; // FontAwesome class
+        public string IconColor { get; set; } = "";
+    }
+
+    // 2. State Properties
+    private UserData UserProfile { get; set; } = new();
+    private List<Recipe> FavoriteRecipes { get; set; } = new();
+
+    // 3. Initialization Logic
+    protected override void OnInitialized()
+    {
+        // Mocking Data - In a real app, you would fetch this from a Service/Database
+        UserProfile = new UserData
+        {
+            Name = "Sarah Jenkins",
+            Email = "sarah.j@example.com",
+            AvatarUrl = "https://images.unsplash.com/photo-1438761681033-6461ffad8d80?ixlib=rb-1.2.1&auto=format&fit=crop&w=200&q=80",
+            SavedCount = 42,
+            TriedCount = 18
+        };
+
+        FavoriteRecipes = new List<Recipe>
+        {
+            new Recipe {
+                Title = "15-Minute Garlic Noodles",
+                Cuisine = "Asian",
+                Time = 15,
+                Rating = 4.8,
+                Tag = "Vegetarian",
+                BgColor = "#FFE5E5",
+                IconClass = "fas fa-bowl-food",
+                IconColor = "#FF7433"
+            },
+            new Recipe {
+                Title = "Classic Margherita Pizza",
+                Cuisine = "Italian",
+                Time = 45,
+                Rating = 4.9,
+                Tag = "Comfort",
+                BgColor = "#E6F4F1",
+                IconClass = "fas fa-pizza-slice",
+                IconColor = "#4A90E2"
+            },
+            new Recipe {
+                Title = "Smash Burger & Fries",
+                Cuisine = "American",
+                Time = 20,
+                Rating = 4.5,
+                Tag = "Cheat Meal",
+                BgColor = "#FFF8E1",
+                IconClass = "fas fa-hamburger",
+                IconColor = "#F5A623"
+            },
+            new Recipe {
+                Title = "Acai Berry Bowl",
+                Cuisine = "Healthy",
+                Time = 35,
+                Rating = 4.7,
+                Tag = "Breakfast",
+                BgColor = "#F3E5F5",
+                IconClass = "fas fa-blender",
+                IconColor = "#9C27B0"
+            }
+        };
+    }
+}

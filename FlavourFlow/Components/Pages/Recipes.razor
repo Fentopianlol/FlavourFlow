@@ -1,0 +1,129 @@
+﻿@page "/recipe"
+
+<div class="page-wrapper">
+
+    <header>
+        <div class="logo">🍜 <span>FlavorFlow</span></div>
+        <nav>
+            <ul>
+                <li><a href="#" class="active">Explore</a></li>
+                <li><a href="#">Saved</a></li>
+                <li><a href="#">Profile</a></li>
+            </ul>
+        </nav>
+    </header>
+
+    <main class="container">
+
+        <section class="hero-card">
+            <div class="hero-content">
+                <button class="back-btn">← Back</button>
+
+                <div>
+                    <h1>Spicy Basil Chicken</h1>
+                    <p class="description">
+                        A classic Thai street food dish (Pad Krapow Gai). Fast, fresh, and filtered for the night.
+                    </p>
+                </div>
+
+                <div class="rating-container">
+                    <span class="rating-number">4.8</span>
+                    <div class="stars">★ ★ ★ ★ ☆</div>
+                </div>
+
+                <div class="controls">
+                    <div class="tags">
+                        <span class="tag">Asian</span>
+                        <span class="tag">Spicy</span>
+                        <span class="tag">Fast</span>
+                    </div>
+                    <div class="qty-selector">
+                        <label for="qtySelect">Qty:</label>
+                        <select id="qtySelect" @onchange="UpdateQty">
+                            <option value="1">1 Serving</option>
+                            <option value="2">2 Servings</option>
+                            <option value="4">4 Servings</option>
+                            <option value="6">6 Servings</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+            <div class="hero-image"></div>
+        </section>
+
+        <div class="content-grid">
+
+            <aside class="ingredients-panel">
+                <h3>Ingredients</h3>
+                <div class="ingredient-list">
+                    @foreach (var item in Ingredients)
+                    {
+                        <label class="ingredient-item">
+                            <input type="checkbox">
+                            <span>
+                                <span class="amt">@FormatAmount(item.BaseAmount * multiplier)</span>
+                                @item.Unit @item.Name
+                            </span>
+                        </label>
+                    }
+                </div>
+            </aside>
+
+            <div class="steps-container">
+                <div class="step-card">
+                    <span class="step-header">STEP 1</span>
+                    <p>Prepare your ingredients. Mince the garlic and chilies together. Slice the chicken into bite-sized pieces. Pluck the holy basil leaves from the stems.</p>
+                    <img src="https://images.unsplash.com/photo-1506368249639-73a05d6f6488?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80" class="step-img" alt="Step 1">
+                </div>
+                <div class="step-card">
+                    <span class="step-header">STEP 2</span>
+                    <p>Heat a wok over high heat. Add oil and stir-fry the garlic and chilies until fragrant (about 20 seconds). Be careful not to burn the garlic!</p>
+                    <img src="https://images.unsplash.com/photo-1512058564366-18510be2db19?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80" class="step-img" alt="Step 2">
+                </div>
+            </div>
+        </div>
+
+    </main>
+</div>
+
+@code {
+    // Current multiplier state
+    private int multiplier = 1;
+
+    // Define a simple class for ingredients
+    public class IngredientItem
+    {
+        public double BaseAmount { get; set; }
+        public string Unit { get; set; } = "";
+        public string Name { get; set; } = "";
+    }
+
+    // List of ingredients
+    private List<IngredientItem> Ingredients = new List<IngredientItem>
+    {
+        new IngredientItem { BaseAmount = 200, Unit = "g", Name = "Chicken Breast" },
+        new IngredientItem { BaseAmount = 1, Unit = "cup", Name = "Basil Leaves" },
+        new IngredientItem { BaseAmount = 4, Unit = "", Name = "Garlic Cloves" },
+        new IngredientItem { BaseAmount = 2, Unit = "", Name = "Chili Peppers" },
+        new IngredientItem { BaseAmount = 1, Unit = "tbsp", Name = "Soy Sauce" },
+        new IngredientItem { BaseAmount = 2, Unit = "tbsp", Name = "Oyster Sauce" },
+        new IngredientItem { BaseAmount = 1, Unit = "tsp", Name = "Sugar" },
+        new IngredientItem { BaseAmount = 1, Unit = "cup", Name = "Jasmine Rice" },
+        new IngredientItem { BaseAmount = 1, Unit = "", Name = "Fried Egg" },
+    };
+
+    // Handler for dropdown change
+    private void UpdateQty(ChangeEventArgs e)
+    {
+        if (int.TryParse(e.Value?.ToString(), out int val))
+        {
+            multiplier = val;
+        }
+    }
+
+    // Helper to format numbers (avoid .0 decimals)
+    private string FormatAmount(double amount)
+    {
+        return (amount % 1 == 0) ? amount.ToString("0") : amount.ToString("0.0");
+    }
+}
