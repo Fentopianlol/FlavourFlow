@@ -1,0 +1,175 @@
+﻿@page "/signup"
+@page "/Account/Register"
+
+@using System.ComponentModel.DataAnnotations
+@using System.Text
+@using System.Text.Encodings.Web
+@using FlavourFlow.Domains
+@using Microsoft.AspNetCore.Identity
+@using Microsoft.AspNetCore.WebUtilities
+@using FlavourFlow.Data
+@using FlavourFlow.Models
+@using FlavourFlow.Components
+
+@inject UserManager<FlavourFlowUser> UserManager
+@inject IUserStore<FlavourFlowUser> UserStore
+@inject SignInManager<FlavourFlowUser> SignInManager
+@inject IEmailSender<FlavourFlowUser> EmailSender
+@inject ILogger<Register> Logger
+@inject NavigationManager NavigationManager
+@inject RoleManager<IdentityRole> RoleManager
+@inject IdentityRedirectManager RedirectManager
+
+<PageTitle>Register - FlavorFlow</PageTitle>
+
+<div class="container-fluid d-flex align-items-center justify-content-center" style="min-height: 80vh; background-color: #f9f9f9;">
+    <div class="col-md-5">
+        <div class="card border-0 shadow-lg p-4" style="border-radius: 30px;">
+            <div class="card-body text-center">
+
+                <div class="mb-4">
+                    <span class="fs-1">🍜</span>
+                    <h3 class="fw-bold mt-2" style="color: #333;">Join FlavorFlow</h3>
+                    <p class="text-muted">Create an account to start your journey with us</p>
+                </div>
+
+                <StatusMessage Message="@Message" />
+
+                <EditForm Model="Input" asp-route-returnUrl="@ReturnUrl" method="post" OnValidSubmit="RegisterUser" FormName="register">
+                    <DataAnnotationsValidator />
+
+                    <div class="form-floating mb-3 text-start">
+                        <InputText @bind-Value="Input.FirstName" class="form-control rounded-pill bg-light border-0 px-4" placeholder="John" />
+                        <label class="px-4">First Name</label>
+                        <ValidationMessage For="() => Input.FirstName" class="text-danger small ms-3" />
+                    </div>
+
+                    <div class="form-floating mb-3 text-start">
+                        <InputText @bind-Value="Input.LastName" class="form-control rounded-pill bg-light border-0 px-4" placeholder="Doe" />
+                        <label class="px-4">Last Name</label>
+                        <ValidationMessage For="() => Input.LastName" class="text-danger small ms-3" />
+                    </div>
+
+                    <div class="form-floating mb-3 text-start">
+                        <InputText @bind-Value="Input.Email" class="form-control rounded-pill bg-light border-0 px-4" placeholder="name@example.com" />
+                        <label class="px-4">Email</label>
+                        <ValidationMessage For="() => Input.Email" class="text-danger small ms-3" />
+                    </div>
+
+                    <div class="form-floating mb-3 text-start">
+                        <InputText type="password" @bind-Value="Input.Password" class="form-control rounded-pill bg-light border-0 px-4" placeholder="password" />
+                        <label class="px-4">Password</label>
+                        <ValidationMessage For="() => Input.Password" class="text-danger small ms-3" />
+                    </div>
+
+                    <div class="form-floating mb-3 text-start">
+                        <InputText type="password" @bind-Value="Input.ConfirmPassword" class="form-control rounded-pill bg-light border-0 px-4" placeholder="password" />
+                        <label class="px-4">Confirm Password</label>
+                        <ValidationMessage For="() => Input.ConfirmPassword" class="text-danger small ms-3" />
+                    </div>
+
+                    <div class="d-grid gap-2">
+                        <button type="submit" class="btn btn-lg rounded-pill text-white fw-bold shadow-sm btn-flavor" style="height: 55px;">
+                            Create Account
+                        </button>
+                    </div>
+                </EditForm>
+
+                <div class="mt-4 text-muted small">
+                    Already have an account? <a href="login" class="fw-bold text-decoration-none" style="color: #FF6B4A;">Log In</a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@code {
+    private IEnumerable<IdentityError>? identityErrors;
+
+    [SupplyParameterFromForm]
+    private InputModel Input { get; set; } = new();
+
+    [SupplyParameterFromQuery]
+    private string? ReturnUrl { get; set; }
+
+    private string? Message => identityErrors is null ? null : $"Error: {string.Join(", ", identityErrors.Select(error => error.Description))}";
+
+    public async Task RegisterUser(EditContext editContext)
+    {
+        var user = CreateUser();
+
+        await UserStore.SetUserNameAsync(user, Input.Email, CancellationToken.None);
+        var emailStore = GetEmailStore();
+        await emailStore.SetEmailAsync(user, Input.Email, CancellationToken.None);
+
+        user.FirstName = Input.FirstName;
+        user.LastName = Input.LastName;
+
+        var result = await UserManager.CreateAsync(user, Input.Password);
+
+        if (!result.Succeeded)
+        {
+            identityErrors = result.Errors;
+            return;
+        }
+
+        if (!await RoleManager.RoleExistsAsync("User"))
+        {
+            await RoleManager.CreateAsync(new IdentityRole("User"));
+        }
+        await UserManager.AddToRoleAsync(user, "User");
+
+        Logger.LogInformation("User created a new account with password.");
+
+        // REDIRECT TO LOGIN INSTEAD OF SIGNING IN
+        RedirectManager.RedirectTo("login");
+    }
+
+    private FlavourFlowUser CreateUser()
+    {
+        try
+        {
+            return Activator.CreateInstance<FlavourFlowUser>();
+        }
+        catch
+        {
+            throw new InvalidOperationException($"Can't create an instance of '{nameof(FlavourFlowUser)}'.");
+        }
+    }
+
+    private IUserEmailStore<FlavourFlowUser> GetEmailStore()
+    {
+        if (!UserManager.SupportsUserEmail)
+        {
+            throw new NotSupportedException("The default UI requires a user store with email support.");
+        }
+        return (IUserEmailStore<FlavourFlowUser>)UserStore;
+    }
+
+    private sealed class InputModel
+    {
+        [Required]
+        [EmailAddress]
+        [Display(Name = "Email")]
+        public string Email { get; set; } = "";
+
+        [Required]
+        [Display(Name = "First Name")]
+        public string FirstName { get; set; } = "";
+
+        [Required]
+        [Display(Name = "Last Name")]
+        public string LastName { get; set; } = "";
+
+        [Required]
+        [StringLength(100, ErrorMessage = "The {0} must be at least {2} and at max {1} characters long.", MinimumLength = 6)]
+        [DataType(DataType.Password)]
+        [Display(Name = "Password")]
+        public string Password { get; set; } = "";
+
+        [DataType(DataType.Password)]
+        [Display(Name = "Confirm password")]
+        [Compare("Password", ErrorMessage = "The password and confirmation password do not match.")]
+        public string ConfirmPassword { get; set; } = "";
+    }
+}   

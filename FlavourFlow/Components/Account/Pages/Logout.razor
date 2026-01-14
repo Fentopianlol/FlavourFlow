@@ -1,0 +1,23 @@
+﻿@page "/Account/Logout"
+@using FlavourFlow.Domains
+@using Microsoft.AspNetCore.Identity
+@using FlavourFlow.Data
+@inject SignInManager<FlavourFlowUser> SignInManager
+@inject NavigationManager NavigationManager
+
+<PageTitle>Logout</PageTitle>
+
+<div class="container mt-5 text-center">
+    <p>Signing you out...</p>
+</div>
+
+@code {
+    protected override async Task OnInitializedAsync()
+    {
+        // 1. Sign out the user
+        await SignInManager.SignOutAsync();
+
+        // 2. Redirect to Home (forceLoad: true is important to refresh cookies!)
+        NavigationManager.NavigateTo("/", forceLoad: true);
+    }
+}

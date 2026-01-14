@@ -1,0 +1,80 @@
+﻿@page "/recipe/{Id:int}"
+@using FlavourFlow.Services
+@using FlavourFlow.Domains
+@inject RecipeService RecipeService
+@inject NavigationManager Navigation
+
+<PageTitle>@(recipe?.Title ?? "Loading...") - FlavorFlow</PageTitle>
+
+<div class="page-wrapper" style="max-width: 900px; margin: 0 auto; padding: 20px;">
+    @if (recipe == null)
+    {
+        <div class="p-5 text-center">
+            <h3>Loading recipe...</h3>
+        </div>
+    }
+    else
+    {
+        <button @onclick="GoBack" style="border: none; background: none; font-size: 1.2rem; cursor: pointer; margin-bottom: 20px;">← Back</button>
+
+        <div class="hero-card" style="border-radius: 20px; overflow: hidden; box-shadow: 0 5px 15px rgba(0,0,0,0.1); margin-bottom: 30px;">
+            <div class="hero-image" style="height: 300px; background-image: url('@recipe.ImageURL'); background-size: cover; background-position: center;"></div>
+            <div class="hero-content" style="padding: 30px; background: white;">
+                <h1>@recipe.Title</h1>
+                <p>@recipe.Description</p>
+                <div class="tags" style="margin-top: 15px;">
+                    <span class="tag">@recipe.Category?.Name</span>
+                    <span class="tag">@recipe.Difficulty</span>
+                    <span class="tag">@recipe.CookTime mins</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="content-grid" style="display: grid; grid-template-columns: 1fr 2fr; gap: 30px;">
+            <aside class="ingredients-panel" style="background: #f9f9f9; padding: 20px; border-radius: 15px;">
+                <h3>Ingredients</h3>
+                <div class="ingredient-list">
+                    @foreach (var item in recipe.Ingredients)
+                    {
+                        <div class="ingredient-item" style="padding: 8px 0; border-bottom: 1px solid #eee;">
+                            <input type="checkbox" style="margin-right: 10px;">
+                            <span><strong>@item.Quantity</strong> @item.Name</span>
+                        </div>
+                    }
+                </div>
+            </aside>
+
+            <div class="steps-container">
+                <h3>Instructions</h3>
+                @foreach (var step in recipe.Instructions.OrderBy(i => i.StepNumber))
+                {
+                    <div class="step-card" style="margin-bottom: 20px; background: white; padding: 20px; border-radius: 10px; border: 1px solid #eee;">
+                        <span class="step-header" style="font-weight: bold; color: #ff6b35;">STEP @step.StepNumber</span>
+                        <p style="margin-top: 5px;">@step.StepDescription</p>
+                    </div>
+                }
+            </div>
+        </div>
+    }
+</div>
+
+@code {
+    [Parameter]
+    public int Id { get; set; } // This comes from URL, e.g. /recipe/5
+
+    private Recipe? recipe;
+
+    protected override async Task OnInitializedAsync()
+    {
+        // Fetch data using the Service
+        recipe = await RecipeService.GetRecipeByIdAsync(Id);
+
+        if (recipe == null)
+        {
+            // If ID doesn't exist, go back home
+            Navigation.NavigateTo("/");
+        }
+    }
+
+    private void GoBack() => Navigation.NavigateTo("/");
+}
