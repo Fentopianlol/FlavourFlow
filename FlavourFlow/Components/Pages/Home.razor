@@ -1,100 +1,109 @@
 ﻿@page "/"
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FlavorFlow Explorer</title>
+    <!-- Linking to the external stylesheet -->
+    <link rel="stylesheet" href="Home.css">
+</head>
+<body>
 
-<div id="notification-banner"></div>
+    <!-- Notification Banner Placeholder (Used by JS instead of alert()) -->
+    <div id="notification-banner"></div>
 
-<header>
-    <div class="logo">
-        <span class="logo-icon">🍜</span>
-        <span>FlavorFlow Explorer</span>
-    </div>
-    <nav>
-        <NavLink href="" Match="NavLinkMatch.All" class="nav-link">Explore</NavLink>
-        <AuthorizeView>
-            <Authorized>
-                <NavLink href="profile" class="nav-link">Profile</NavLink>
-                <NavLink href="saved" class="nav-link">Saved</NavLink>
-            </Authorized>
-            <NotAuthorized>
-                <NavLink href="login" class="nav-link">Log In</NavLink>
-            </NotAuthorized>
-        </AuthorizeView>
-    </nav>
-</header>
+    <header>
+        <div class="logo">
+            <span class="logo-icon">🍜</span>
+            <span>FlavorFlow Explorer</span>
+        </div>
+        <nav>
+            <NavLink href="" Match="NavLinkMatch.All" class="nav-link">Explore</NavLink>
+            
+            <NavLink href="saved" class="nav-link">Saved</NavLink>
 
-<div class="hero">
-    <h1>What are you craving?</h1>
-    <p>Find the perfect meal. Fast, fresh, and filtered for the night.</p>
+            <AuthorizeView>
+                <Authorized>
+                    <NavLink href="profile" class="nav-link">Profile</NavLink>
+                </Authorized>
+                <NotAuthorized>
+                    <NavLink href="login" class="nav-link">Log In</NavLink>
+                </NotAuthorized>
+            </AuthorizeView>
+        </nav>
+    </header>
 
-    <div class="search-container">
-        <div class="search-box">
-            <span class="search-icon">🔍</span>
-            <input type="text" class="search-input" placeholder="Search for ingredients (e.g., 'chicken', 'pasta')...">
-            <button class="search-btn">Go</button>
+    <div class="hero">
+        <h1>What are you craving?</h1>
+        <p>Find the perfect meal. Fast, fresh, and filtered for the night.</p>
+
+        <div class="search-container">
+            <div class="search-box">
+                <span class="search-icon">🔍</span>
+                <input type="text" class="search-input" placeholder="Search for ingredients (e.g., 'chicken', 'pasta')...">
+                <button class="search-btn">Go</button>
+            </div>
         </div>
     </div>
-</div>
 
-<div class="content">
-    <div class="section-header">
-        <h2>Browse by Cuisine</h2>
-        <a href="#" class="view-all">View All</a>
-    </div>
+    <div class="content">
+        <div class="section-header">
+            <h2>Browse by Cuisine</h2>
+            <a href="#" class="view-all">View All</a>
+        </div>
 
-    <div class="cuisine-grid">
-        <a href="cuisine/Italian" class="cuisine-card italian" style="text-decoration: none;">
-            <span class="cuisine-icon">🍝</span>
-            <h3>Italian</h3>
-            <span class="cuisine-tag">Comfort</span>
-        </a>
-
-        <a href="cuisine/Asian" class="cuisine-card asian" style="text-decoration: none;">
-            <span class="cuisine-icon">🥢</span>
-            <h3>Asian</h3>
-            <span class="cuisine-tag">Savory & Fast</span>
-        </a>
-
-        <a href="cuisine/Mexican" class="cuisine-card mexican" style="text-decoration: none;">
-            <span class="cuisine-icon">🌮</span>
-            <h3>Mexican</h3>
-            <span class="cuisine-tag">Spicy & Fresh</span>
-        </a>
-
-        <a href="cuisine/American" class="cuisine-card american" style="text-decoration: none;">
-            <span class="cuisine-icon">🍔</span>
-            <h3>American</h3>
-            <span class="cuisine-tag">Classic</span>
-        </a>
-    </div>
-
-    <div class="filter-tabs">
-        <button class="filter-tab active">Everything</button>
-        <button class="filter-tab">⚡ Under 30 Min</button>
-        <button class="filter-tab">🍳 Leisurely Cook</button>
-    </div>
-
-    <div class="recipe-grid">
-        <div class="recipe-card">
-            <div class="recipe-image">
-                <span>🍜</span>
-                <div class="recipe-time">15 min</div>
+        <div class="cuisine-grid">
+            <div class="cuisine-card italian">
+                <span class="cuisine-icon">🍝</span>
+                <h3>Italian</h3>
+                <span class="cuisine-tag">Comfort</span>
             </div>
-            <div class="recipe-info">
-                <div class="recipe-category">
-                    <span>ASIAN</span>
-                    <div class="recipe-rating">
-                        <span>⭐</span>
-                        <span>4.8</span>
+            <div class="cuisine-card asian">
+                <span class="cuisine-icon">🥢</span>
+                <h3>Asian</h3>
+                <span class="cuisine-tag">Savory & Fast</span>
+            </div>
+            <div class="cuisine-card mexican">
+                <span class="cuisine-icon">🌮</span>
+                <h3>Mexican</h3>
+                <span class="cuisine-tag">Spicy & Fresh</span>
+            </div>
+            <div class="cuisine-card american">
+                <span class="cuisine-icon">🍔</span>
+                <h3>American</h3>
+                <span class="cuisine-tag">Classic</span>
+            </div>
+        </div>
+
+        <div class="filter-tabs">
+            <button class="filter-tab active">Everything</button>
+            <button class="filter-tab">⚡ Under 30 Min</button>
+            <button class="filter-tab">🍳 Leisurely Cook</button>
+        </div>
+
+        <div class="recipe-grid">
+            <div class="recipe-card">
+                <div class="recipe-image">
+                    <span>🍜</span>
+                    <div class="recipe-time">15 min</div>
+                </div>
+                <div class="recipe-info">
+                    <div class="recipe-category">
+                        <span>ASIAN</span>
+                        <div class="recipe-rating">
+                            <span>⭐</span>
+                            <span>4.8</span>
+                        </div>
+                    </div>
+                    <div class="recipe-title">15-Minute Garlic Noodles</div>
+                    <div class="recipe-tags">
+                        <span class="recipe-tag">Vegetarian</span>
                     </div>
                 </div>
-                <div class="recipe-title">15-Minute Garlic Noodles</div>
-                <div class="recipe-tags">
-                    <span class="recipe-tag">Vegetarian</span>
-                </div>
             </div>
         </div>
     </div>
-</div>
- 
 
     <script>
         // notification
@@ -119,7 +128,7 @@
             });
         });
 
-        // Cuisine card click functionality
+        // Cuisine card click functionality 
         const cuisineCards = document.querySelectorAll('.cuisine-card');
         cuisineCards.forEach(card => {
             card.addEventListener('click', () => {
@@ -148,3 +157,5 @@
             }
         });
     </script>
+</body>
+</html>
