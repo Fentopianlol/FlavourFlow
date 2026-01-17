@@ -1,0 +1,132 @@
+﻿@page "/Account/LoginWith2fa"
+
+@using System.ComponentModel.DataAnnotations
+@using Microsoft.AspNetCore.Identity
+@using FlavourFlow.Data
+@using FlavourFlow.Domains
+@using FlavourFlow.Components
+
+@inject SignInManager<FlavourFlowUser> SignInManager
+@inject UserManager<FlavourFlowUser> UserManager
+@inject IdentityRedirectManager RedirectManager
+@inject ILogger<LoginWith2fa> Logger
+
+<PageTitle>Two-factor authentication - FlavorFlow</PageTitle>
+
+<div class="container-fluid d-flex align-items-center justify-content-center" style="min-height: 80vh; background-color: #f9f9f9;">
+    <div class="col-md-5">
+        <div class="card border-0 shadow-lg p-4" style="border-radius: 30px;">
+            <div class="card-body text-center">
+                <div class="mb-4">
+                    <span class="fs-1">🍜</span>
+                    <h3 class="fw-bold mt-2" style="color: #333;">Two-Factor Auth</h3>
+                    <p class="text-muted">Your login is protected. Enter your authenticator code.</p>
+                </div>
+
+                <StatusMessage Message="@message" />
+
+                <EditForm Model="Input" FormName="login-with-2fa" OnValidSubmit="OnValidSubmitAsync" method="post">
+                    <input type="hidden" name="ReturnUrl" value="@ReturnUrl" />
+                    <input type="hidden" name="RememberMe" value="@RememberMe" />
+                    <DataAnnotationsValidator />
+                    <ValidationSummary class="text-danger" role="alert" />
+
+                    <div class="form-floating mb-3 text-start">
+                        <InputText @bind-Value="Input.TwoFactorCode" class="form-control rounded-pill bg-light border-0 px-4" autocomplete="off" placeholder="Code" />
+                        <label class="px-4">Authenticator Code</label>
+                        <ValidationMessage For="() => Input.TwoFactorCode" class="text-danger small ms-3" />
+                    </div>
+
+                    <div class="checkbox mb-3 text-start px-4">
+                        <label for="remember-machine" class="form-label text-muted">
+                            <InputCheckbox @bind-Value="Input.RememberMachine" />
+                            Remember this machine
+                        </label>
+                    </div>
+
+                    <div class="d-grid gap-2">
+                        <button type="submit" class="btn btn-lg rounded-pill text-white fw-bold shadow-sm btn-flavor" style="height: 55px;">
+                            Log in
+                        </button>
+                    </div>
+                </EditForm>
+
+                <div class="mt-4 text-muted small">
+                    Don't have access?
+                    <a href="Account/LoginWithRecoveryCode?ReturnUrl=@ReturnUrl" class="fw-bold text-decoration-none" style="color: #FF6B4A;">
+                        Use Recovery Code
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+    .btn-flavor {
+        background-color: #ff6b35;
+        border-color: #ff6b35;
+        color: white;
+        transition: all 0.3s;
+    }
+
+        .btn-flavor:hover {
+            background-color: #ff5520;
+            border-color: #ff5520;
+        }
+</style>
+
+@code {
+    private string? message;
+    private FlavourFlowUser user = default!;
+
+    [SupplyParameterFromForm]
+    private InputModel Input { get; set; } = new();
+
+    [SupplyParameterFromQuery]
+    private string? ReturnUrl { get; set; }
+
+    [SupplyParameterFromQuery]
+    private bool RememberMe { get; set; }
+
+    protected override async Task OnInitializedAsync()
+    {
+        user = await SignInManager.GetTwoFactorAuthenticationUserAsync() ??
+            throw new InvalidOperationException("Unable to load two-factor authentication user.");
+    }
+
+    private async Task OnValidSubmitAsync()
+    {
+        var authenticatorCode = Input.TwoFactorCode!.Replace(" ", string.Empty).Replace("-", string.Empty);
+        var result = await SignInManager.TwoFactorAuthenticatorSignInAsync(authenticatorCode, RememberMe, Input.RememberMachine);
+        var userId = await UserManager.GetUserIdAsync(user);
+
+        if (result.Succeeded)
+        {
+            Logger.LogInformation("User with ID '{UserId}' logged in with 2fa.", userId);
+            RedirectManager.RedirectTo(ReturnUrl);
+        }
+        else if (result.IsLockedOut)
+        {
+            Logger.LogWarning("User with ID '{UserId}' account locked out.", userId);
+            RedirectManager.RedirectTo("Account/Lockout");
+        }
+        else
+        {
+            Logger.LogWarning("Invalid authenticator code entered for user with ID '{UserId}'.", userId);
+            message = "Error: Invalid authenticator code.";
+        }
+    }
+
+    private sealed class InputModel
+    {
+        [Required]
+        [StringLength(7, ErrorMessage = "The {0} must be at least {2} and at max {1} characters long.", MinimumLength = 6)]
+        [DataType(DataType.Text)]
+        [Display(Name = "Authenticator code")]
+        public string? TwoFactorCode { get; set; }
+
+        [Display(Name = "Remember this machine")]
+        public bool RememberMachine { get; set; }
+    }
+}

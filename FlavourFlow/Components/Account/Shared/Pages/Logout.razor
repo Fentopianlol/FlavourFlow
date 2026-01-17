@@ -1,0 +1,18 @@
+﻿@page "/logout"
+@using Microsoft.AspNetCore.Antiforgery
+
+<PageTitle>Logging out...</PageTitle>
+
+<div style="display:none;">
+    <form id="logoutForm" action="Account/Logout" method="post">
+        <AntiforgeryToken />
+        <input type="hidden" name="ReturnUrl" value="/" />
+        <button type="submit">Logout</button>
+    </form>
+</div>
+
+<script>
+    window.onload = function() {
+        document.getElementById('logoutForm').submit();
+    }
+</script>

@@ -1,0 +1,110 @@
+﻿@using Microsoft.AspNetCore.Components.Authorization
+@inject NavigationManager Navigation
+@rendermode RenderMode.InteractiveServer
+
+<AuthorizeView>
+    <Authorized>
+        <button class="nav-link btn-link" @onclick="RequestLogout">Log Out</button>
+    </Authorized>
+</AuthorizeView>
+
+@if (showLogoutConfirmation)
+{
+    <div class="modal-backdrop">
+        <div class="modal-content">
+            <h3>Log Out?</h3>
+            <p>Are you sure you want to leave FlavorFlow?</p>
+            <div class="modal-actions">
+                <button class="btn-cancel" @onclick="() => showLogoutConfirmation = false">Cancel</button>
+                <button class="btn-confirm" @onclick="ConfirmLogout">Yes, Log Out</button>
+            </div>
+        </div>
+    </div>
+}
+
+<style>
+    /* Scoped styles for this component */
+    .btn-link {
+        background: none;
+        border: none;
+        padding: 0;
+        font: inherit;
+        cursor: pointer;
+        color: #666;
+        font-weight: 500;
+    }
+
+        .btn-link:hover {
+            color: #ff6b35;
+        }
+
+    .modal-backdrop {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(0,0,0,0.5);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        z-index: 2000;
+    }
+
+    .modal-content {
+        background: white;
+        padding: 30px;
+        border-radius: 20px;
+        width: 90%;
+        max-width: 400px;
+        text-align: center;
+        box-shadow: 0 10px 40px rgba(0,0,0,0.2);
+        color: #333;
+    }
+
+    .modal-actions {
+        display: flex;
+        gap: 15px;
+        justify-content: center;
+        margin-top: 25px;
+    }
+
+    .btn-cancel {
+        background: #f0f0f0;
+        border: none;
+        padding: 10px 20px;
+        border-radius: 20px;
+        cursor: pointer;
+        font-weight: bold;
+        color: #555;
+    }
+
+    .btn-confirm {
+        background: #ff4d4d;
+        border: none;
+        padding: 10px 20px;
+        border-radius: 20px;
+        cursor: pointer;
+        font-weight: bold;
+        color: white;
+    }
+
+        .btn-confirm:hover {
+            background: #e04343;
+        }
+</style>
+
+@code {
+    private bool showLogoutConfirmation = false;
+
+    private void RequestLogout()
+    {
+        showLogoutConfirmation = true;
+    }
+
+    private void ConfirmLogout()
+    {
+        // Redirects to the logout handler we fixed in Step 1
+        Navigation.NavigateTo("logout", forceLoad: true);
+    }
+}

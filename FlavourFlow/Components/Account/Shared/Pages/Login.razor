@@ -1,0 +1,145 @@
+﻿@page "/Account/Login"
+
+@using System.ComponentModel.DataAnnotations
+@using Microsoft.AspNetCore.Authentication
+@using Microsoft.AspNetCore.Identity
+@using FlavourFlow.Data
+@using FlavourFlow.Components.Layout
+
+@inject SignInManager<FlavourFlowUser> SignInManager
+@inject ILogger<Login> Logger
+@inject NavigationManager Navigation
+@inject IdentityRedirectManager RedirectManager
+
+<PageTitle>Log in - FlavorFlow</PageTitle>
+
+<div class="container-fluid d-flex align-items-center justify-content-center" style="min-height: 80vh; background-color: #f9f9f9;">
+    <div class="col-md-5">
+        <div class="card border-0 shadow-lg p-4" style="border-radius: 30px;">
+            <div class="card-body text-center">
+
+                <div class="mb-4">
+                    <span class="fs-1">🍜</span>
+                    <h3 class="fw-bold mt-2" style="color: #333;">Welcome Back</h3>
+                    <p class="text-muted">Log in to continue your food journey</p>
+                </div>
+
+                <StatusMessage Message="@errorMessage" />
+
+                <EditForm Model="Input" method="post" OnValidSubmit="LoginUser" FormName="login">
+                    <DataAnnotationsValidator />
+                    <ValidationSummary class="text-danger" role="alert" />
+
+                    <div class="form-floating mb-3 text-start">
+                        <InputText @bind-Value="Input.Email" class="form-control rounded-pill bg-light border-0 px-4" autocomplete="username" placeholder="name@example.com" />
+                        <label class="px-4">Email</label>
+                        <ValidationMessage For="() => Input.Email" class="text-danger small ms-3" />
+                    </div>
+
+                    <div class="form-floating mb-3 text-start">
+                        <InputText type="password" @bind-Value="Input.Password" class="form-control rounded-pill bg-light border-0 px-4" autocomplete="current-password" placeholder="password" />
+                        <label class="px-4">Password</label>
+                        <ValidationMessage For="() => Input.Password" class="text-danger small ms-3" />
+                    </div>
+
+                    <div class="checkbox mb-3 text-start px-3">
+                        <label class="form-label text-muted">
+                            <InputCheckbox @bind-Value="Input.RememberMe" class="form-check-input" />
+                            Remember me
+                        </label>
+                    </div>
+
+                    <div class="d-grid gap-2">
+                        <button type="submit" class="btn btn-lg rounded-pill text-white fw-bold shadow-sm btn-flavor" style="height: 55px;">
+                            Log In
+                        </button>
+                    </div>
+
+                    <div class="mt-4 text-muted small">
+                        <p>
+                            <a href="Account/ForgotPassword" class="text-decoration-none" style="color: #888;">Forgot password?</a>
+                        </p>
+                        <p>
+                            Don't have an account? <a href="Account/Register" class="fw-bold text-decoration-none" style="color: #FF6B4A;">Sign Up</a>
+                        </p>
+                    </div>
+                </EditForm>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+    .btn-flavor {
+        background-color: #ff6b35;
+        border-color: #ff6b35;
+        color: white;
+        transition: all 0.3s;
+    }
+
+        .btn-flavor:hover {
+            background-color: #ff5520;
+            border-color: #ff5520;
+        }
+</style>
+
+@code {
+    private string? errorMessage;
+
+    [CascadingParameter]
+    private HttpContext HttpContext { get; set; } = default!;
+
+    [SupplyParameterFromForm]
+    private InputModel Input { get; set; } = new();
+
+    [SupplyParameterFromQuery]
+    private string? ReturnUrl { get; set; }
+
+    protected override async Task OnInitializedAsync()
+    {
+        if (HttpMethods.IsGet(HttpContext.Request.Method))
+        {
+            // Clear the existing external cookie to ensure a clean login process
+            await HttpContext.SignOutAsync(IdentityConstants.ExternalScheme);
+        }
+    }
+
+    public async Task LoginUser()
+    {
+        var result = await SignInManager.PasswordSignInAsync(Input.Email, Input.Password, Input.RememberMe, lockoutOnFailure: false);
+        if (result.Succeeded)
+        {
+            Logger.LogInformation("User logged in.");
+            RedirectManager.RedirectTo(ReturnUrl);
+        }
+        else if (result.RequiresTwoFactor)
+        {
+            RedirectManager.RedirectTo(
+                "Account/LoginWith2fa",
+                new() { ["returnUrl"] = ReturnUrl, ["rememberMe"] = Input.RememberMe });
+        }
+        else if (result.IsLockedOut)
+        {
+            Logger.LogWarning("User account locked out.");
+            RedirectManager.RedirectTo("Account/Lockout");
+        }
+        else
+        {
+            errorMessage = "Error: Invalid login attempt.";
+        }
+    }
+
+    private sealed class InputModel
+    {
+        [Required]
+        [EmailAddress]
+        public string Email { get; set; } = "";
+
+        [Required]
+        [DataType(DataType.Password)]
+        public string Password { get; set; } = "";
+
+        [Display(Name = "Remember me?")]
+        public bool RememberMe { get; set; }
+    }
+}

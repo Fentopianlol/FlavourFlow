@@ -1,0 +1,98 @@
+﻿@page "/Account/ResendEmailConfirmation"
+
+@using System.ComponentModel.DataAnnotations
+@using System.Text
+@using System.Text.Encodings.Web
+@using Microsoft.AspNetCore.Identity
+@using Microsoft.AspNetCore.WebUtilities
+@using FlavourFlow.Data
+@using FlavourFlow.Domains
+@using FlavourFlow.Components
+
+@inject UserManager<FlavourFlowUser> UserManager
+@inject IEmailSender<FlavourFlowUser> EmailSender
+@inject NavigationManager NavigationManager
+@inject IdentityRedirectManager RedirectManager
+
+<PageTitle>Resend Email Confirmation - FlavorFlow</PageTitle>
+
+<div class="container-fluid d-flex align-items-center justify-content-center" style="min-height: 80vh; background-color: #f9f9f9;">
+    <div class="col-md-5">
+        <div class="card border-0 shadow-lg p-4" style="border-radius: 30px;">
+            <div class="card-body text-center">
+                <div class="mb-4">
+                    <span class="fs-1">🍜</span>
+                    <h3 class="fw-bold mt-2" style="color: #333;">Resend Confirmation</h3>
+                    <p class="text-muted">Enter your email to receive a new link.</p>
+                </div>
+
+                <StatusMessage Message="@message" />
+
+                <EditForm Model="Input" FormName="resend-email-confirmation" OnValidSubmit="OnValidSubmitAsync" method="post">
+                    <DataAnnotationsValidator />
+                    <ValidationSummary class="text-danger" role="alert" />
+
+                    <div class="form-floating mb-3 text-start">
+                        <InputText @bind-Value="Input.Email" class="form-control rounded-pill bg-light border-0 px-4" placeholder="name@example.com" />
+                        <label class="px-4">Email</label>
+                        <ValidationMessage For="() => Input.Email" class="text-danger small ms-3" />
+                    </div>
+
+                    <div class="d-grid gap-2">
+                        <button type="submit" class="btn btn-lg rounded-pill text-white fw-bold shadow-sm btn-flavor" style="height: 55px;">
+                            Resend Email
+                        </button>
+                    </div>
+                </EditForm>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+    .btn-flavor {
+        background-color: #ff6b35;
+        border-color: #ff6b35;
+        color: white;
+        transition: all 0.3s;
+    }
+
+        .btn-flavor:hover {
+            background-color: #ff5520;
+            border-color: #ff5520;
+        }
+</style>
+
+@code {
+    private string? message;
+
+    [SupplyParameterFromForm]
+    private InputModel Input { get; set; } = new();
+
+    private async Task OnValidSubmitAsync()
+    {
+        var user = await UserManager.FindByEmailAsync(Input.Email!);
+        if (user is null)
+        {
+            message = "Verification email sent. Please check your email.";
+            return;
+        }
+
+        var userId = await UserManager.GetUserIdAsync(user);
+        var code = await UserManager.GenerateEmailConfirmationTokenAsync(user);
+        code = WebEncoders.Base64UrlEncode(Encoding.UTF8.GetBytes(code));
+        var callbackUrl = NavigationManager.GetUriWithQueryParameters(
+            NavigationManager.ToAbsoluteUri("Account/ConfirmEmail").AbsoluteUri,
+            new Dictionary<string, object?> { ["userId"] = userId, ["code"] = code });
+        await EmailSender.SendConfirmationLinkAsync(user, Input.Email, HtmlEncoder.Default.Encode(callbackUrl));
+
+        message = "Verification email sent. Please check your email.";
+    }
+
+    private sealed class InputModel
+    {
+        [Required]
+        [EmailAddress]
+        public string Email { get; set; } = "";
+    }
+}

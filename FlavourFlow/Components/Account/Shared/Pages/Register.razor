@@ -1,15 +1,13 @@
-﻿@page "/signup"
-@page "/Account/Register"
+﻿@page "/Account/Register"
+@page "/signup"
 
 @using System.ComponentModel.DataAnnotations
 @using System.Text
 @using System.Text.Encodings.Web
-@using FlavourFlow.Domains
 @using Microsoft.AspNetCore.Identity
 @using Microsoft.AspNetCore.WebUtilities
 @using FlavourFlow.Data
-@using FlavourFlow.Models
-@using FlavourFlow.Components
+@using FlavourFlow.Domains
 
 @inject UserManager<FlavourFlowUser> UserManager
 @inject IUserStore<FlavourFlowUser> UserStore
@@ -17,8 +15,8 @@
 @inject IEmailSender<FlavourFlowUser> EmailSender
 @inject ILogger<Register> Logger
 @inject NavigationManager NavigationManager
-@inject RoleManager<IdentityRole> RoleManager
 @inject IdentityRedirectManager RedirectManager
+@inject RoleManager<IdentityRole> RoleManager
 
 <PageTitle>Register - FlavorFlow</PageTitle>
 
@@ -37,15 +35,16 @@
 
                 <EditForm Model="Input" asp-route-returnUrl="@ReturnUrl" method="post" OnValidSubmit="RegisterUser" FormName="register">
                     <DataAnnotationsValidator />
+                    <ValidationSummary class="text-danger" role="alert" />
 
                     <div class="form-floating mb-3 text-start">
-                        <InputText @bind-Value="Input.FirstName" class="form-control rounded-pill bg-light border-0 px-4" placeholder="John" />
+                        <InputText @bind-Value="Input.FirstName" class="form-control rounded-pill bg-light border-0 px-4" placeholder="First Name" />
                         <label class="px-4">First Name</label>
                         <ValidationMessage For="() => Input.FirstName" class="text-danger small ms-3" />
                     </div>
 
                     <div class="form-floating mb-3 text-start">
-                        <InputText @bind-Value="Input.LastName" class="form-control rounded-pill bg-light border-0 px-4" placeholder="Doe" />
+                        <InputText @bind-Value="Input.LastName" class="form-control rounded-pill bg-light border-0 px-4" placeholder="Last Name" />
                         <label class="px-4">Last Name</label>
                         <ValidationMessage For="() => Input.LastName" class="text-danger small ms-3" />
                     </div>
@@ -70,18 +69,32 @@
 
                     <div class="d-grid gap-2">
                         <button type="submit" class="btn btn-lg rounded-pill text-white fw-bold shadow-sm btn-flavor" style="height: 55px;">
-                            Create Account
+                            Register
                         </button>
                     </div>
                 </EditForm>
 
                 <div class="mt-4 text-muted small">
-                    Already have an account? <a href="login" class="fw-bold text-decoration-none" style="color: #FF6B4A;">Log In</a>
+                    Already have an account? <a href="Account/Login" class="fw-bold text-decoration-none" style="color: #FF6B4A;">Log In</a>
                 </div>
             </div>
         </div>
     </div>
 </div>
+
+<style>
+    .btn-flavor {
+        background-color: #ff6b35;
+        border-color: #ff6b35;
+        color: white;
+        transition: all 0.3s;
+    }
+
+        .btn-flavor:hover {
+            background-color: #ff5520;
+            border-color: #ff5520;
+        }
+</style>
 
 @code {
     private IEnumerable<IdentityError>? identityErrors;
@@ -102,6 +115,7 @@
         var emailStore = GetEmailStore();
         await emailStore.SetEmailAsync(user, Input.Email, CancellationToken.None);
 
+        // Custom Fields
         user.FirstName = Input.FirstName;
         user.LastName = Input.LastName;
 
@@ -113,16 +127,34 @@
             return;
         }
 
+        // Add Role
         if (!await RoleManager.RoleExistsAsync("User"))
         {
             await RoleManager.CreateAsync(new IdentityRole("User"));
         }
         await UserManager.AddToRoleAsync(user, "User");
+        await UserManager.AddClaimAsync(user, new System.Security.Claims.Claim("userId", user.Id));
 
         Logger.LogInformation("User created a new account with password.");
 
-        // REDIRECT TO LOGIN INSTEAD OF SIGNING IN
-        RedirectManager.RedirectTo("login");
+        var userId = await UserManager.GetUserIdAsync(user);
+        var code = await UserManager.GenerateEmailConfirmationTokenAsync(user);
+        code = WebEncoders.Base64UrlEncode(Encoding.UTF8.GetBytes(code));
+        var callbackUrl = NavigationManager.GetUriWithQueryParameters(
+            NavigationManager.ToAbsoluteUri("Account/ConfirmEmail").AbsoluteUri,
+            new Dictionary<string, object?> { ["userId"] = userId, ["code"] = code, ["returnUrl"] = ReturnUrl });
+
+        await EmailSender.SendConfirmationLinkAsync(user, Input.Email, HtmlEncoder.Default.Encode(callbackUrl));
+
+        if (UserManager.Options.SignIn.RequireConfirmedAccount)
+        {
+            RedirectManager.RedirectTo(
+                "Account/RegisterConfirmation",
+                new() { ["email"] = Input.Email, ["returnUrl"] = ReturnUrl });
+        }
+
+        // FIXED REDIRECT BELOW: "Account/Login" instead of "login"
+        RedirectManager.RedirectTo("Account/Login");
     }
 
     private FlavourFlowUser CreateUser()
@@ -172,4 +204,4 @@
         [Compare("Password", ErrorMessage = "The password and confirmation password do not match.")]
         public string ConfirmPassword { get; set; } = "";
     }
-}   
+}

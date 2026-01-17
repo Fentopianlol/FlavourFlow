@@ -1,31 +1,28 @@
-﻿using FlavourFlow.Domains;
-using FlavourFlow.Models;
-using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
+﻿using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore;
+using FlavourFlow.Domains;
 
 namespace FlavourFlow.Data
 {
-    // Renamed to 'FlavourFlowContext' and using 'FlavourFlowUser'
     public class FlavourFlowContext(DbContextOptions<FlavourFlowContext> options) : IdentityDbContext<FlavourFlowUser>(options)
     {
-        // Your Database Tables
         public DbSet<Recipe> Recipe { get; set; } = default!;
-        public DbSet<Ingredient> Ingredient { get; set; } = default!;
-        public DbSet<Instruction> Instruction { get; set; } = default!;
         public DbSet<Category> Category { get; set; } = default!;
+        public DbSet<Review> Review { get; set; } = default!;
 
+        // --- NEW: Fix the Multiple Cascade Path Error ---
         protected override void OnModelCreating(ModelBuilder builder)
         {
             base.OnModelCreating(builder);
 
-
-
-            // Seeding Data (Optional)
-            builder.Entity<Category>().HasData(
-                new Category { CategoryId = 1, Name = "Asian", Type = "Cuisine" },
-                new Category { CategoryId = 2, Name = "Italian", Type = "Cuisine" },
-                new Category { CategoryId = 3, Name = "Vegan", Type = "Dietary" }
-            );
+            // This tells SQL Server: "If a Recipe is deleted, prevent it if there are reviews" 
+            // OR "Don't try to auto-delete reviews via this path during a User delete."
+            // This solves the "Cycles or Multiple Cascade Paths" error.
+            builder.Entity<Review>()
+                .HasOne(r => r.Recipe)
+                .WithMany(rec => rec.Reviews)
+                .HasForeignKey(r => r.RecipeId)
+                .OnDelete(DeleteBehavior.Restrict);
         }
     }
 }

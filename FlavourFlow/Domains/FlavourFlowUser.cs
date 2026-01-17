@@ -4,7 +4,10 @@ namespace FlavourFlow.Domains
 {
     public class FlavourFlowUser : IdentityUser
     {
-        public string FirstName { get; set; }
-        public string LastName { get; set; }
+        // FIX: Initialize these with empty strings to satisfy the compiler
+        public string FirstName { get; set; } = "";
+        public string LastName { get; set; } = "";
+
+        public List<Recipe> SavedRecipes { get; set; } = new();
     }
 }

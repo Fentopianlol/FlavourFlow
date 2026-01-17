@@ -1,0 +1,492 @@
+﻿@page "/profile"
+@page "/profile/{UserId?}"
+
+@using Microsoft.AspNetCore.Authorization
+@using Microsoft.AspNetCore.Identity
+@using Microsoft.AspNetCore.Components.Authorization
+@using Microsoft.AspNetCore.Components.Web
+@using FlavourFlow.Domains
+@using FlavourFlow.Data
+@using FlavourFlow.Components.Account
+@using FlavourFlow.Services
+
+@rendermode RenderMode.InteractiveServer
+@inject NavigationManager Navigation
+@inject AuthenticationStateProvider AuthenticationStateProvider
+@inject UserManager<FlavourFlowUser> UserManager
+@inject UserService UserService
+@inject RecipeService RecipeService
+
+<PageTitle>@(UserProfile.Name)'s Profile - FlavorFlow</PageTitle>
+
+<div class="profile-container">
+    <div class="profile-header-card">
+        <div class="banner" style="background: @GetBannerGradient(UserProfile.Name);"></div>
+
+        <div class="header-content">
+            <div class="avatar-container">
+                <img src="@UserProfile.AvatarUrl" alt="@UserProfile.Name" class="avatar-img" />
+            </div>
+
+            <div class="user-info">
+                <h1>@UserProfile.Name</h1>
+                <p class="email">@UserProfile.Email</p>
+                <p class="bio">🍳 FlavorFlow Chef since 2026</p>
+
+                @if (isCurrentUser)
+                {
+                    <div class="action-buttons">
+                        <button class="btn-secondary">Edit Profile</button>
+                        <button class="btn-danger-outline" @onclick="RequestLogout">Log Out</button>
+                    </div>
+                }
+            </div>
+
+            <div class="stats-row">
+                <div class="stat-item">
+                    <span class="stat-val">@UserProfile.CreatedCount</span>
+                    <span class="stat-label">Created</span>
+                </div>
+                <div class="stat-item">
+                    <span class="stat-val">@UserProfile.SavedCount</span>
+                    <span class="stat-label">Saved</span>
+                </div>
+                <div class="stat-item">
+                    <span class="stat-val">0</span>
+                    <span class="stat-label">Reviews</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="profile-tabs">
+        <button class="tab-btn @(activeTab == "created" ? "active" : "")" @onclick='() => activeTab = "created"'>
+            Created Recipes
+        </button>
+        <button class="tab-btn @(activeTab == "saved" ? "active" : "")" @onclick='() => activeTab = "saved"'>
+            Saved Cookbook
+        </button>
+        <button class="tab-btn @(activeTab == "reviews" ? "active" : "")" @onclick='() => activeTab = "reviews"'>
+            Reviews
+        </button>
+    </div>
+
+    <div class="content-area">
+        @if (isLoading)
+        {
+            <p class="loading-text">Loading recipes...</p>
+        }
+        else if (activeTab == "created")
+        {
+            @if (createdRecipes.Any())
+            {
+                <div class="recipe-grid">
+                    @foreach (var recipe in createdRecipes)
+                    {
+                        @RecipeCard(recipe)
+                    }
+                </div>
+            }
+            else
+            {
+                <div class="empty-state">
+                    <span>👨‍🍳</span>
+                    <p>No recipes posted yet.</p>
+                </div>
+            }
+        }
+        else if (activeTab == "saved")
+        {
+            @if (savedRecipes.Any())
+            {
+                <div class="recipe-grid">
+                    @foreach (var recipe in savedRecipes)
+                    {
+                        @RecipeCard(recipe)
+                    }
+                </div>
+            }
+            else
+            {
+                <div class="empty-state">
+                    <span>❤️</span>
+                    <p>No recipes saved yet.</p>
+                </div>
+            }
+        }
+        else if (activeTab == "reviews")
+        {
+            <div class="empty-state">
+                <span>⭐</span>
+                <p>Reviews coming soon!</p>
+            </div>
+        }
+    </div>
+</div>
+
+@if (showLogoutConfirmation)
+{
+    <div class="modal-backdrop">
+        <div class="modal-content">
+            <h3>Log Out?</h3>
+            <p>Are you sure you want to leave?</p>
+            <div class="modal-actions">
+                <button class="btn-cancel" @onclick="() => showLogoutConfirmation = false">Cancel</button>
+                <button class="btn-confirm" @onclick="ConfirmLogout">Log Out</button>
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    [Parameter]
+    public string? UserId { get; set; }
+
+    // Internal Data Class with Counts
+    public class UserData
+    {
+        public string Id { get; set; } = "";
+        public string Name { get; set; } = "Loading...";
+        public string Email { get; set; } = "";
+        public string AvatarUrl { get; set; } = "";
+        public int SavedCount { get; set; }   // <--- Added property
+        public int CreatedCount { get; set; } // <--- Added property
+    }
+
+    private UserData UserProfile { get; set; } = new();
+    private List<Recipe> createdRecipes = new();
+    private List<Recipe> savedRecipes = new();
+
+    private bool isLoading = true;
+    private bool isCurrentUser = false;
+    private bool showLogoutConfirmation = false;
+    private string activeTab = "created";
+
+    protected override async Task OnInitializedAsync()
+    {
+        FlavourFlowUser? user = null;
+        var authState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
+        var loggedInPrincipal = authState.User;
+
+        // 1. Determine User
+        if (string.IsNullOrEmpty(UserId))
+        {
+            if (loggedInPrincipal.Identity?.IsAuthenticated ?? false)
+            {
+                user = await UserManager.GetUserAsync(loggedInPrincipal);
+                isCurrentUser = true;
+            }
+        }
+        else
+        {
+            user = await UserManager.FindByIdAsync(UserId);
+            if (loggedInPrincipal.Identity?.IsAuthenticated == true)
+            {
+                var myId = UserManager.GetUserId(loggedInPrincipal);
+                isCurrentUser = (myId == user?.Id);
+            }
+        }
+
+        // 2. Load Data
+        if (user != null)
+        {
+            createdRecipes = await RecipeService.GetRecipesByCreatorAsync(user.Id);
+            savedRecipes = await UserService.GetSavedRecipesAsync(user.Id);
+
+            UserProfile = new UserData
+            {
+                Id = user.Id,
+                Name = $"{user.FirstName} {user.LastName}",
+                Email = user.Email ?? "",
+                AvatarUrl = $"https://ui-avatars.com/api/?background=random&name={user.FirstName}+{user.LastName}&size=200",
+                SavedCount = savedRecipes.Count,
+                CreatedCount = createdRecipes.Count
+            };
+        }
+        else
+        {
+            UserProfile.Name = "Guest";
+            UserProfile.AvatarUrl = "https://ui-avatars.com/api/?name=Guest";
+        }
+
+        isLoading = false;
+    }
+
+    private string GetBannerGradient(string name)
+    {
+        int hash = name.Length % 3;
+        return hash switch
+        {
+            0 => "linear-gradient(135deg, #FF9A9E 0%, #FECFEF 100%)",
+            1 => "linear-gradient(135deg, #a18cd1 0%, #fbc2eb 100%)",
+            _ => "linear-gradient(135deg, #84fab0 0%, #8fd3f4 100%)"
+        };
+    }
+
+    private void RequestLogout() => showLogoutConfirmation = true;
+    private void ConfirmLogout() => Navigation.NavigateTo("logout", forceLoad: true);
+
+    // Mini Recipe Card Component
+    private RenderFragment<Recipe> RecipeCard => recipe => __builder =>
+    {
+        <div class="recipe-card" @onclick='() => Navigation.NavigateTo($"/recipe/{recipe.RecipeId}")'>
+            <div class="card-img" style="background-image: url('@(string.IsNullOrEmpty(recipe.ImageURL) ? "https://images.unsplash.com/photo-1495521821757-a1efb6729352?auto=format&fit=crop&w=800&q=80" : recipe.ImageURL)');"></div>
+            <div class="card-info">
+                <h4>@recipe.Title</h4>
+                <div class="card-meta">
+                    <span class="cat-tag">@recipe.Category?.Name</span>
+                    <span class="time-tag">⏱ @recipe.CookTime min</span>
+                </div>
+            </div>
+        </div>
+    };
+}
+
+<style>
+    /* === LAYOUT === */
+    .profile-container {
+        max-width: 900px;
+        margin: 2rem auto;
+        padding: 0 1rem;
+    }
+
+    /* === HEADER CARD === */
+    .profile-header-card {
+        background: white;
+        border-radius: 20px;
+        overflow: hidden;
+        box-shadow: 0 4px 20px rgba(0,0,0,0.08);
+        margin-bottom: 2rem;
+        position: relative;
+    }
+
+    .banner {
+        height: 120px;
+        width: 100%;
+    }
+
+    .header-content {
+        padding: 0 30px 30px 30px;
+        display: flex;
+        align-items: flex-end;
+        gap: 20px;
+        position: relative;
+        margin-top: -50px;
+    }
+
+    .avatar-container {
+        width: 120px;
+        height: 120px;
+        border-radius: 50%;
+        border: 5px solid white;
+        box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+        overflow: hidden;
+        background: white;
+        flex-shrink: 0;
+    }
+
+    .avatar-img {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+    }
+
+    .user-info {
+        flex: 1;
+        padding-top: 60px;
+    }
+
+        .user-info h1 {
+            margin: 0;
+            font-size: 1.8rem;
+            color: #333;
+        }
+
+        .user-info .email {
+            margin: 0;
+            color: #888;
+            font-size: 0.9rem;
+        }
+
+        .user-info .bio {
+            margin-top: 8px;
+            color: #555;
+            font-style: italic;
+        }
+
+    .action-buttons {
+        margin-top: 15px;
+        display: flex;
+        gap: 10px;
+    }
+
+    .btn-secondary {
+        background: #eee;
+        color: #333;
+        border: none;
+        padding: 6px 15px;
+        border-radius: 20px;
+        font-weight: 600;
+        cursor: pointer;
+    }
+
+    .btn-danger-outline {
+        background: white;
+        color: #ff4d4d;
+        border: 1px solid #ff4d4d;
+        padding: 6px 15px;
+        border-radius: 20px;
+        font-weight: 600;
+        cursor: pointer;
+    }
+
+        .btn-danger-outline:hover {
+            background: #ff4d4d;
+            color: white;
+        }
+
+    /* === STATS === */
+    .stats-row {
+        display: flex;
+        gap: 20px;
+        text-align: center;
+        padding-bottom: 10px;
+    }
+
+    .stat-item {
+        display: flex;
+        flex-direction: column;
+    }
+
+    .stat-val {
+        font-size: 1.4rem;
+        font-weight: 800;
+        color: #333;
+    }
+
+    .stat-label {
+        font-size: 0.8rem;
+        color: #888;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+    }
+
+    /* === TABS === */
+    .profile-tabs {
+        display: flex;
+        gap: 10px;
+        border-bottom: 1px solid #eee;
+        margin-bottom: 20px;
+    }
+
+    .tab-btn {
+        background: none;
+        border: none;
+        padding: 10px 20px;
+        font-size: 1rem;
+        color: #888;
+        font-weight: 600;
+        cursor: pointer;
+        border-bottom: 3px solid transparent;
+    }
+
+        .tab-btn.active {
+            color: #ff6b35;
+            border-bottom-color: #ff6b35;
+        }
+
+        .tab-btn:hover {
+            color: #333;
+        }
+
+    /* === GRID & CARDS === */
+    .recipe-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+        gap: 20px;
+    }
+
+    .recipe-card {
+        background: white;
+        border-radius: 15px;
+        overflow: hidden;
+        box-shadow: 0 4px 15px rgba(0,0,0,0.05);
+        cursor: pointer;
+        transition: transform 0.2s;
+    }
+
+        .recipe-card:hover {
+            transform: translateY(-5px);
+        }
+
+    .card-img {
+        height: 140px;
+        background-size: cover;
+        background-position: center;
+        background-color: #eee;
+    }
+
+    .card-info {
+        padding: 15px;
+    }
+
+        .card-info h4 {
+            margin: 0 0 10px 0;
+            font-size: 1rem;
+            color: #333;
+        }
+
+    .card-meta {
+        display: flex;
+        justify-content: space-between;
+        font-size: 0.8rem;
+    }
+
+    .cat-tag {
+        color: #7b1fa2;
+        font-weight: bold;
+    }
+
+    .time-tag {
+        color: #ef6c00;
+        font-weight: bold;
+    }
+
+    .empty-state {
+        text-align: center;
+        padding: 40px;
+        color: #888;
+        background: white;
+        border-radius: 15px;
+    }
+
+        .empty-state span {
+            font-size: 3rem;
+            display: block;
+            margin-bottom: 10px;
+        }
+
+    .loading-text {
+        text-align: center;
+        color: #888;
+        margin-top: 40px;
+    }
+
+    /* === MOBILE === */
+    @@media (max-width: 768px) {
+        .header-content {
+            flex-direction: column;
+            align-items: center;
+            text-align: center;
+            margin-top: -60px;
+        }
+
+        .user-info {
+            padding-top: 10px;
+        }
+
+        .stats-row {
+            margin-top: 20px;
+        }
+    }
+</style>

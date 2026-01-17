@@ -12,8 +12,8 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace FlavourFlow.Migrations
 {
     [DbContext(typeof(FlavourFlowContext))]
-    [Migration("20260114081622_FixKeys")]
-    partial class FixKeys
+    [Migration("20260117134503_FreshStart")]
+    partial class FreshStart
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
@@ -44,26 +44,6 @@ namespace FlavourFlow.Migrations
                     b.HasKey("CategoryId");
 
                     b.ToTable("Category");
-
-                    b.HasData(
-                        new
-                        {
-                            CategoryId = 1,
-                            Name = "Asian",
-                            Type = "Cuisine"
-                        },
-                        new
-                        {
-                            CategoryId = 2,
-                            Name = "Italian",
-                            Type = "Cuisine"
-                        },
-                        new
-                        {
-                            CategoryId = 3,
-                            Name = "Vegan",
-                            Type = "Dietary"
-                        });
                 });
 
             modelBuilder.Entity("FlavourFlow.Domains.FlavourFlowUser", b =>
@@ -170,6 +150,7 @@ namespace FlavourFlow.Migrations
                         .HasColumnType("nvarchar(max)");
 
                     b.Property<string>("UserId")
+                        .IsRequired()
                         .HasColumnType("nvarchar(450)");
 
                     b.HasKey("RecipeId");
@@ -179,6 +160,40 @@ namespace FlavourFlow.Migrations
                     b.HasIndex("UserId");
 
                     b.ToTable("Recipe");
+                });
+
+            modelBuilder.Entity("FlavourFlow.Domains.Review", b =>
+                {
+                    b.Property<int>("ReviewId")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("ReviewId"));
+
+                    b.Property<string>("Comment")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<int>("Rating")
+                        .HasColumnType("int");
+
+                    b.Property<int>("RecipeId")
+                        .HasColumnType("int");
+
+                    b.Property<string>("UserId")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(450)");
+
+                    b.HasKey("ReviewId");
+
+                    b.HasIndex("RecipeId");
+
+                    b.HasIndex("UserId");
+
+                    b.ToTable("Review");
                 });
 
             modelBuilder.Entity("FlavourFlow.Models.Ingredient", b =>
@@ -374,10 +389,31 @@ namespace FlavourFlow.Migrations
                         .IsRequired();
 
                     b.HasOne("FlavourFlow.Domains.FlavourFlowUser", "User")
-                        .WithMany()
-                        .HasForeignKey("UserId");
+                        .WithMany("SavedRecipes")
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
 
                     b.Navigation("Category");
+
+                    b.Navigation("User");
+                });
+
+            modelBuilder.Entity("FlavourFlow.Domains.Review", b =>
+                {
+                    b.HasOne("FlavourFlow.Domains.Recipe", "Recipe")
+                        .WithMany("Reviews")
+                        .HasForeignKey("RecipeId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("FlavourFlow.Domains.FlavourFlowUser", "User")
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Recipe");
 
                     b.Navigation("User");
                 });
@@ -451,11 +487,18 @@ namespace FlavourFlow.Migrations
                         .IsRequired();
                 });
 
+            modelBuilder.Entity("FlavourFlow.Domains.FlavourFlowUser", b =>
+                {
+                    b.Navigation("SavedRecipes");
+                });
+
             modelBuilder.Entity("FlavourFlow.Domains.Recipe", b =>
                 {
                     b.Navigation("Ingredients");
 
                     b.Navigation("Instructions");
+
+                    b.Navigation("Reviews");
                 });
 #pragma warning restore 612, 618
         }
