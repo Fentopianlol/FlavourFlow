@@ -26,7 +26,7 @@
     <div class="settings-grid">
         <div class="settings-card">
             <h3>👤 Personal Details</h3>
-            <EditForm Model="ProfileInput" OnValidSubmit="UpdateProfileAsync">
+            <EditForm Model="ProfileInput" OnValidSubmit="UpdateProfileAsync" FormName="profile">
                 <DataAnnotationsValidator />
 
                 <div class="form-group">
@@ -40,8 +40,8 @@
                 </div>
 
                 <div class="form-group">
-                    <label>Phone Number</label>
-                    <InputText @bind-Value="ProfileInput.PhoneNumber" class="form-control" placeholder="+1 (555) 000-0000" />
+                    <label>Email Address</label>
+                    <InputText @bind-Value="ProfileInput.Email" class="form-control" placeholder="name@example.com" />
                 </div>
 
                 <button type="submit" class="btn-save">Save Profile</button>
@@ -50,7 +50,7 @@
 
         <div class="settings-card">
             <h3>🔒 Security</h3>
-            <EditForm Model="PasswordInput" OnValidSubmit="ChangePasswordAsync">
+            <EditForm Model="PasswordInput" OnValidSubmit="ChangePasswordAsync" FormName="password">
                 <DataAnnotationsValidator />
                 <ValidationSummary />
 
@@ -80,8 +80,10 @@
     private string? statusMessage;
     private bool isError = false;
 
-    // Models
+    [SupplyParameterFromForm(FormName = "profile")]
     private ProfileModel ProfileInput { get; set; } = new();
+
+    [SupplyParameterFromForm(FormName = "password")]
     private PasswordModel PasswordInput { get; set; } = new();
 
     protected override async Task OnInitializedAsync()
@@ -95,30 +97,53 @@
             return;
         }
 
-        ProfileInput = new ProfileModel
+        // Load initial data if form hasn't been submitted yet
+        if (string.IsNullOrEmpty(ProfileInput.FirstName))
         {
-            FirstName = user.FirstName,
-            LastName = user.LastName,
-            PhoneNumber = user.PhoneNumber ?? ""
-        };
+            ProfileInput = new ProfileModel
+            {
+                FirstName = user.FirstName,
+                LastName = user.LastName,
+                Email = user.Email ?? ""
+            };
+        }
     }
 
     private async Task UpdateProfileAsync()
     {
         if (user == null) return;
 
+        // 1. Update basic info
         user.FirstName = ProfileInput.FirstName;
         user.LastName = ProfileInput.LastName;
-        user.PhoneNumber = ProfileInput.PhoneNumber;
 
+        // 2. Handle Email Change (Updates Username as well)
+        if (user.Email != ProfileInput.Email)
+        {
+            var emailResult = await UserManager.SetEmailAsync(user, ProfileInput.Email);
+            var userResult = await UserManager.SetUserNameAsync(user, ProfileInput.Email);
+
+            if (!emailResult.Succeeded || !userResult.Succeeded)
+            {
+                statusMessage = "Error updating email.";
+                isError = true;
+                return;
+            }
+        }
+
+        // 3. Save updates
         var result = await UserManager.UpdateAsync(user);
 
         if (result.Succeeded)
         {
-            statusMessage = "✅ Profile updated successfully!";
+            statusMessage = "✅ Profile updated!";
             isError = false;
-            // Refresh cookie to ensure UI updates immediately
+
+            // Refresh cookie so the new name/email is recognized immediately
             await SignInManager.RefreshSignInAsync(user);
+
+            // --- REDIRECT TO HOME ---
+            Navigation.NavigateTo("/", forceLoad: true);
         }
         else
         {
@@ -139,6 +164,9 @@
             isError = false;
             PasswordInput = new(); // Clear form
             await SignInManager.RefreshSignInAsync(user);
+
+            // --- REDIRECT TO HOME (ADDED THIS) ---
+            Navigation.NavigateTo("/", forceLoad: true);
         }
         else
         {
@@ -147,12 +175,11 @@
         }
     }
 
-    // Inner Classes for Forms
     public class ProfileModel
     {
         [Required] public string FirstName { get; set; } = "";
         [Required] public string LastName { get; set; } = "";
-        [Phone] public string PhoneNumber { get; set; } = "";
+        [Required][EmailAddress] public string Email { get; set; } = "";
     }
 
     public class PasswordModel
@@ -177,7 +204,6 @@
         max-width: 900px;
         margin: 40px auto;
         padding: 0 20px;
-        /* Using the global font variable here too */
         font-family: var(--font-main, 'Segoe UI', sans-serif);
     }
 
