@@ -7,7 +7,8 @@
         <Found Context="routeData">
             <AuthorizeRouteView RouteData="@routeData" DefaultLayout="@typeof(MainLayout)">
                 <NotAuthorized>
-                    <FlavourFlow.Components.Account.AccessDenied />
+                    @* <FlavourFlow.Components.Account.AccessDenied /> *@
+                    <p>You are not authorized to view this page.</p>
                 </NotAuthorized>
             </AuthorizeRouteView>
             <FocusOnNavigate RouteData="@routeData" Selector="h1" />

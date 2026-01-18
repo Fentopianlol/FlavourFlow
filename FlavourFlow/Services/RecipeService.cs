@@ -1,60 +1,118 @@
-﻿using FlavourFlow.Data;
+﻿using Microsoft.EntityFrameworkCore;
+using FlavourFlow.Data;
 using FlavourFlow.Domains;
-using Microsoft.EntityFrameworkCore;
 
 namespace FlavourFlow.Services
 {
-    public class RecipeService(FlavourFlowContext context)
+    public class RecipeService
     {
-        public async Task<Recipe?> GetRecipeByIdAsync(int id)
+        private readonly FlavourFlowContext _context;
+
+        public RecipeService(FlavourFlowContext context)
         {
-            return await context.Recipe
-                .Include(r => r.Ingredients)
-                .Include(r => r.Instructions)
-                .Include(r => r.Category)
-                .Include(r => r.User)
-                // --- NEW: Include Reviews and the User who wrote them ---
-                .Include(r => r.Reviews).ThenInclude(rv => rv.User)
-                .FirstOrDefaultAsync(r => r.RecipeId == id);
+            _context = context;
         }
 
-        public async Task<List<Recipe>> GetRecipesByCategoryAsync(string cuisineName)
+        // --- 1. FETCHING RECIPES ---
+        public async Task<List<Recipe>> GetRecipesAsync()
         {
-            return await context.Recipe
+            return await _context.Recipe
                 .Include(r => r.Category)
-                .Where(r => r.Category.Name == cuisineName)
+                .Include(r => r.User)
+                .Include(r => r.Reviews)
+                .OrderByDescending(r => r.DateCreated) // Newest First
                 .ToListAsync();
+        }
+
+        public async Task<Recipe?> GetRecipeByIdAsync(int id)
+        {
+            return await _context.Recipe
+                .Include(r => r.Category)
+                .Include(r => r.User)
+                .Include(r => r.Ingredients)
+                .Include(r => r.Instructions)
+                .Include(r => r.Reviews)
+                    .ThenInclude(rv => rv.User)
+                .FirstOrDefaultAsync(r => r.RecipeId == id);
         }
 
         public async Task<List<Recipe>> GetRecipesByCreatorAsync(string userId)
         {
-            return await context.Recipe
+            return await _context.Recipe
                 .Include(r => r.Category)
-                .Include(r => r.User)
+                .Include(r => r.Reviews)
                 .Where(r => r.UserId == userId)
+                .OrderByDescending(r => r.DateCreated) // Newest First
                 .ToListAsync();
         }
 
-        public async Task<List<Recipe>> GetRecipesByFilterAsync(string filter)
+        // --- 2. FILTERING ---
+        public async Task<List<Recipe>> GetRecipesByFilterAsync(string categoryName)
         {
-            var query = context.Recipe
+            if (categoryName == "Everything")
+            {
+                return await GetRecipesAsync();
+            }
+            return await _context.Recipe
                 .Include(r => r.Category)
-                .Include(r => r.User)
-                .AsQueryable();
-
-            if (filter == "Under 30 Min")
-            {
-                query = query.Where(r => r.CookTime <= 30);
-            }
-            else if (filter == "Leisurely Cook")
-            {
-                query = query.Where(r => r.CookTime > 30);
-            }
-
-            return await query.ToListAsync();
+                .Include(r => r.Reviews)
+                .Where(r => r.Category != null && r.Category.Name == categoryName)
+                .OrderByDescending(r => r.DateCreated) // Newest First
+                .ToListAsync();
         }
 
-        // --- NEW METHOD: Add Review ---
+        public async Task<List<Recipe>> GetRecipesByCategoryAsync(string categoryName)
+        {
+            return await GetRecipesByFilterAsync(categoryName);
+        }
+
+        // --- 3. SEARCH ENGINE ---
+        public async Task<List<Recipe>> SearchRecipesAsync(string searchText)
+        {
+            if (string.IsNullOrWhiteSpace(searchText))
+            {
+                return await GetRecipesAsync();
+            }
+
+            var lowerText = searchText.ToLower();
+
+            return await _context.Recipe
+                .Include(r => r.Category)
+                .Include(r => r.Ingredients)
+                .Include(r => r.Reviews)
+                .Where(r =>
+                    r.Title.ToLower().Contains(lowerText) ||
+                    r.Description.ToLower().Contains(lowerText) ||
+                    (r.Tags != null && r.Tags.ToLower().Contains(lowerText)) ||
+                    r.Ingredients.Any(i => i.Name.ToLower().Contains(lowerText))
+                )
+                .OrderByDescending(r => r.DateCreated) // Newest First
+                .ToListAsync();
+        }
+
+        // --- 4. CREATING ---
+        public async Task<List<Category>> GetCategoriesAsync()
+        {
+            return await _context.Category.ToListAsync();
+        }
+
+        public async Task<int> CreateRecipeAsync(Recipe recipe)
+        {
+            if (recipe.Ingredients == null) recipe.Ingredients = new List<Ingredient>();
+            if (recipe.Instructions == null) recipe.Instructions = new List<Instruction>();
+
+            _context.Recipe.Add(recipe);
+            await _context.SaveChangesAsync();
+            return recipe.RecipeId;
+        }
+
+        // --- 5. REVIEWS ---
+        public async Task AddReviewAsync(Review review)
+        {
+            _context.Review.Add(review);
+            await _context.SaveChangesAsync();
+        }
+
         public async Task AddReviewAsync(int recipeId, string userId, int rating, string comment)
         {
             var review = new Review
@@ -63,17 +121,25 @@ namespace FlavourFlow.Services
                 UserId = userId,
                 Rating = rating,
                 Comment = comment,
-                CreatedAt = DateTime.UtcNow
+                CreatedAt = DateTime.Now
             };
-            context.Review.Add(review);
-            await context.SaveChangesAsync();
+            _context.Review.Add(review);
+            await _context.SaveChangesAsync();
         }
-        // Inside RecipeService.cs
+
         public async Task<bool> HasUserReviewedAsync(int recipeId, string userId)
         {
-            return await context.Review
+            return await _context.Review
                 .AnyAsync(r => r.RecipeId == recipeId && r.UserId == userId);
-        }  
-    }
+        }
 
+        public async Task<List<Review>> GetReviewsByUserIdAsync(string userId)
+        {
+            return await _context.Review
+                .Include(r => r.Recipe)
+                .Where(r => r.UserId == userId)
+                .OrderByDescending(r => r.CreatedAt)
+                .ToListAsync();
+        }
+    }
 }

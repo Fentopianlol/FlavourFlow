@@ -4,25 +4,24 @@ using FlavourFlow.Domains;
 
 namespace FlavourFlow.Data
 {
-    public class FlavourFlowContext(DbContextOptions<FlavourFlowContext> options) : IdentityDbContext<FlavourFlowUser>(options)
+    public class FlavourFlowContext : IdentityDbContext<FlavourFlowUser>
     {
-        public DbSet<Recipe> Recipe { get; set; } = default!;
-        public DbSet<Category> Category { get; set; } = default!;
-        public DbSet<Review> Review { get; set; } = default!;
+        public FlavourFlowContext(DbContextOptions<FlavourFlowContext> options)
+            : base(options)
+        {
+        }
 
-        // --- NEW: Fix the Multiple Cascade Path Error ---
+        public DbSet<Recipe> Recipe { get; set; }
+        public DbSet<Category> Category { get; set; }
+        public DbSet<Review> Review { get; set; }
+
+        // --- NEW TABLE REGISTRATION ---
+        public DbSet<SavedRecipe> SavedRecipes { get; set; }
+
         protected override void OnModelCreating(ModelBuilder builder)
         {
             base.OnModelCreating(builder);
-
-            // This tells SQL Server: "If a Recipe is deleted, prevent it if there are reviews" 
-            // OR "Don't try to auto-delete reviews via this path during a User delete."
-            // This solves the "Cycles or Multiple Cascade Paths" error.
-            builder.Entity<Review>()
-                .HasOne(r => r.Recipe)
-                .WithMany(rec => rec.Reviews)
-                .HasForeignKey(r => r.RecipeId)
-                .OnDelete(DeleteBehavior.Restrict);
+            // Additional configuration if needed
         }
     }
 }

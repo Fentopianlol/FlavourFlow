@@ -1,0 +1,417 @@
+﻿@page "/add-recipe"
+@using Microsoft.AspNetCore.Authorization
+@using Microsoft.AspNetCore.Components.Authorization
+@using Microsoft.AspNetCore.Identity
+@using FlavourFlow.Domains
+@using FlavourFlow.Services
+@using FlavourFlow.Data
+
+@attribute [Authorize]
+@rendermode RenderMode.InteractiveServer
+@inject RecipeService RecipeService
+@inject NavigationManager Navigation
+@inject AuthenticationStateProvider AuthStateProvider
+@inject UserManager<FlavourFlowUser> UserManager
+
+<PageTitle>Add Recipe - FlavorFlow</PageTitle>
+
+<div class="add-container">
+    <div class="header-section">
+        <h1>🍳 Share Your Recipe</h1>
+        <p>Contribute your culinary masterpiece to the world.</p>
+    </div>
+
+    <EditForm Model="newRecipe" OnValidSubmit="HandleSubmit">
+        <DataAnnotationsValidator />
+        <ValidationSummary />
+
+        <div class="form-section">
+            <h3>Basic Details</h3>
+            <div class="form-row">
+                <div class="form-group full-width">
+                    <label>Recipe Title</label>
+                    <InputText @bind-Value="newRecipe.Title" class="form-control" placeholder="e.g. Grandma's Apple Pie" />
+                </div>
+            </div>
+
+            <div class="form-row">
+                <div class="form-group">
+                    <label>Category</label>
+                    <InputSelect @bind-Value="newRecipe.CategoryId" class="form-control">
+                        <option value="">Select a Category...</option>
+                        @foreach (var cat in categories)
+                        {
+                            <option value="@cat.CategoryId">@cat.Name</option>
+                        }
+                    </InputSelect>
+                </div>
+                <div class="form-group">
+                    <label>Cook Time (minutes)</label>
+                    <InputNumber @bind-Value="newRecipe.CookTime" class="form-control" />
+                </div>
+                <div class="form-group">
+                    <label>Difficulty</label>
+                    <InputSelect @bind-Value="newRecipe.Difficulty" class="form-control">
+                        <option value="Easy">Easy</option>
+                        <option value="Medium">Medium</option>
+                        <option value="Hard">Hard</option>
+                    </InputSelect>
+                </div>
+            </div>
+
+            <div class="form-group full-width">
+                <label>Description</label>
+                <InputTextArea @bind-Value="newRecipe.Description" class="form-control" rows="3" placeholder="Tell us a story about this dish..." />
+            </div>
+
+            <div class="form-group full-width">
+                <label>Image URL</label>
+                <InputText @bind-Value="newRecipe.ImageURL" class="form-control" placeholder="https://..." />
+                <small class="text-muted">Paste a link to an image of your dish.</small>
+            </div>
+        </div>
+
+        <div class="form-section">
+            <div class="section-header">
+                <h3>Ingredients</h3>
+                <button type="button" class="btn-add" @onclick="AddIngredient">＋ Add Ingredient</button>
+            </div>
+
+            <div class="dynamic-list">
+                @for (int i = 0; i < newRecipe.Ingredients.Count; i++)
+                {
+                    var index = i;
+                    <div class="dynamic-row">
+                        <InputText @bind-Value="newRecipe.Ingredients[index].Quantity" class="form-control qty" placeholder="Qty (e.g. 2 cups)" />
+                        <InputText @bind-Value="newRecipe.Ingredients[index].Name" class="form-control" placeholder="Ingredient Name" />
+                        <button type="button" class="btn-remove" @onclick="() => RemoveIngredient(index)">✖</button>
+                    </div>
+                }
+            </div>
+        </div>
+
+        <div class="form-section">
+            <div class="section-header">
+                <h3>Instructions</h3>
+                <button type="button" class="btn-add" @onclick="AddInstruction">＋ Add Step</button>
+            </div>
+
+            <div class="dynamic-list">
+                @for (int i = 0; i < newRecipe.Instructions.Count; i++)
+                {
+                    var index = i;
+                    <div class="dynamic-row step-row">
+                        <span class="step-badge">@(index + 1)</span>
+                        <InputTextArea @bind-Value="newRecipe.Instructions[index].StepDescription" class="form-control" rows="2" placeholder="What to do next..." />
+                        <button type="button" class="btn-remove" @onclick="() => RemoveInstruction(index)">✖</button>
+                    </div>
+                }
+            </div>
+        </div>
+
+        <div class="form-section">
+            <h3>Tags & Filters</h3>
+            <p class="text-muted">Select all that apply:</p>
+
+            <div class="tags-grid">
+                @foreach (var tag in availableTags)
+                {
+                    <div class="tag-item @(selectedTags.Contains(tag) ? "selected" : "")"
+                         @onclick="() => ToggleTag(tag)">
+                        @tag
+                    </div>
+                }
+            </div>
+            <InputText @bind-Value="newRecipe.Tags" style="display:none" />
+        </div>
+
+        <div class="submit-area">
+            <button type="submit" class="btn-publish" disabled="@isSubmitting">
+                @(isSubmitting ? "Publishing..." : "Publish Recipe")
+            </button>
+        </div>
+
+    </EditForm>
+</div>
+
+@code {
+    private Recipe newRecipe = new Recipe
+    {
+        Ingredients = new List<Ingredient> { new Ingredient() },
+        Instructions = new List<Instruction> { new Instruction { StepNumber = 1 } }
+    };
+
+    private List<Category> categories = new();
+    private bool isSubmitting = false;
+
+    // --- TAGS LOGIC ---
+    private List<string> availableTags = new()
+    {
+        "Vegetarian", "Vegan", "Gluten-Free", "Spicy",
+        "Healthy", "Comfort Food", "Quick", "Breakfast", "Dinner", "Dessert"
+    };
+    private HashSet<string> selectedTags = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        categories = await RecipeService.GetCategoriesAsync();
+    }
+
+    private void AddIngredient() => newRecipe.Ingredients.Add(new Ingredient());
+
+    private void RemoveIngredient(int index)
+    {
+        if (newRecipe.Ingredients.Count > 1) newRecipe.Ingredients.RemoveAt(index);
+    }
+
+    private void AddInstruction() => newRecipe.Instructions.Add(new Instruction { StepNumber = newRecipe.Instructions.Count + 1 });
+
+    private void RemoveInstruction(int index)
+    {
+        if (newRecipe.Instructions.Count > 1)
+        {
+            newRecipe.Instructions.RemoveAt(index);
+            for (int i = 0; i < newRecipe.Instructions.Count; i++) newRecipe.Instructions[i].StepNumber = i + 1;
+        }
+    }
+
+    private void ToggleTag(string tag)
+    {
+        if (selectedTags.Contains(tag)) selectedTags.Remove(tag);
+        else selectedTags.Add(tag);
+
+        newRecipe.Tags = string.Join(",", selectedTags);
+    }
+
+    private async Task HandleSubmit()
+    {
+        isSubmitting = true;
+        var authState = await AuthStateProvider.GetAuthenticationStateAsync();
+        var user = await UserManager.GetUserAsync(authState.User);
+
+        if (user != null)
+        {
+            newRecipe.UserId = user.Id;
+            newRecipe.DateCreated = DateTime.Now; // Ensure timestamp is set
+
+            var newId = await RecipeService.CreateRecipeAsync(newRecipe);
+
+            // --- FIX: Force Load to refresh Home Page Cache ---
+            Navigation.NavigateTo("/", forceLoad: true);
+        }
+        isSubmitting = false;
+    }
+}
+
+<style>
+    .add-container {
+        max-width: 800px;
+        margin: 40px auto;
+        padding: 0 20px;
+        font-family: 'Segoe UI', sans-serif;
+    }
+
+    .header-section {
+        text-align: center;
+        margin-bottom: 40px;
+    }
+
+        .header-section h1 {
+            font-size: 2.5rem;
+            font-weight: 800;
+            color: #333;
+            margin-bottom: 10px;
+        }
+
+        .header-section p {
+            color: #666;
+            font-size: 1.1rem;
+        }
+
+    .form-section {
+        background: white;
+        border-radius: 15px;
+        padding: 30px;
+        box-shadow: 0 4px 15px rgba(0,0,0,0.05);
+        margin-bottom: 30px;
+        border: 1px solid #eee;
+    }
+
+        .form-section h3 {
+            margin-top: 0;
+            color: #333;
+            margin-bottom: 20px;
+            border-bottom: 2px solid #f0f0f0;
+            padding-bottom: 10px;
+        }
+
+    .form-row {
+        display: flex;
+        gap: 20px;
+        margin-bottom: 20px;
+    }
+
+    .form-group {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+    }
+
+    .full-width {
+        width: 100%;
+    }
+
+    label {
+        font-weight: bold;
+        font-size: 0.9rem;
+        color: #555;
+    }
+
+    .form-control {
+        padding: 12px;
+        border: 1px solid #ddd;
+        border-radius: 8px;
+        font-size: 1rem;
+        transition: border 0.2s;
+    }
+
+        .form-control:focus {
+            outline: none;
+            border-color: #ff6b35;
+            box-shadow: 0 0 0 3px rgba(255, 107, 53, 0.1);
+        }
+
+    .section-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 20px;
+    }
+
+    .btn-add {
+        background: #e6f7ff;
+        color: #007bff;
+        border: none;
+        padding: 8px 15px;
+        border-radius: 20px;
+        font-weight: bold;
+        cursor: pointer;
+    }
+
+        .btn-add:hover {
+            background: #bae7ff;
+        }
+
+    .dynamic-row {
+        display: flex;
+        gap: 10px;
+        margin-bottom: 10px;
+        align-items: center;
+    }
+
+    .qty {
+        flex: 0 0 120px;
+    }
+
+    .btn-remove {
+        background: #fff0f0;
+        color: #ff4d4d;
+        border: none;
+        width: 35px;
+        height: 35px;
+        border-radius: 50%;
+        cursor: pointer;
+        font-weight: bold;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        transition: background 0.2s;
+    }
+
+        .btn-remove:hover {
+            background: #ffcccc;
+        }
+
+    .step-row {
+        align-items: flex-start;
+    }
+
+    .step-badge {
+        background: #333;
+        color: white;
+        width: 30px;
+        height: 30px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-weight: bold;
+        flex-shrink: 0;
+        margin-top: 5px;
+    }
+
+    .submit-area {
+        text-align: center;
+        margin-top: 40px;
+        margin-bottom: 60px;
+    }
+
+    .btn-publish {
+        background: #ff6b35;
+        color: white;
+        font-size: 1.2rem;
+        font-weight: bold;
+        padding: 15px 50px;
+        border: none;
+        border-radius: 50px;
+        cursor: pointer;
+        box-shadow: 0 10px 20px rgba(255, 107, 53, 0.3);
+        transition: transform 0.2s;
+    }
+
+        .btn-publish:hover {
+            transform: translateY(-3px);
+            background: #e55a2b;
+        }
+
+        .btn-publish:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+    /* Tags Grid */
+    .tags-grid {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px;
+    }
+
+    .tag-item {
+        padding: 8px 20px;
+        border-radius: 20px;
+        border: 2px solid #eee;
+        cursor: pointer;
+        font-weight: 600;
+        color: #555;
+        transition: all 0.2s;
+    }
+
+        .tag-item:hover {
+            border-color: #ff6b35;
+            color: #ff6b35;
+        }
+
+        .tag-item.selected {
+            background: #ff6b35;
+            color: white;
+            border-color: #ff6b35;
+        }
+
+    @@media (max-width: 768px) {
+        .form-row {
+            flex-direction: column;
+        }
+    }
+</style>

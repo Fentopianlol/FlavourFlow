@@ -1,5 +1,4 @@
 using FlavourFlow.Components;
-using FlavourFlow.Components;
 using FlavourFlow.Components.Account;
 using FlavourFlow.Data;
 using FlavourFlow.Domains;
@@ -32,8 +31,8 @@ builder.Services.AddDbContext<FlavourFlowContext>(options =>
 
 builder.Services.AddDatabaseDeveloperPageExceptionFilter();
 
-builder.Services.AddIdentityCore<FlavourFlowUser>(options => options.SignIn.RequireConfirmedAccount = true)
-    .AddRoles<IdentityRole>()                 // <--- ADD THIS LINE HERE
+builder.Services.AddIdentityCore<FlavourFlowUser>(options => options.SignIn.RequireConfirmedAccount = false) // <--- CHANGE TO FALSE
+    .AddRoles<IdentityRole>()
     .AddEntityFrameworkStores<FlavourFlowContext>()
     .AddSignInManager()
     .AddDefaultTokenProviders();

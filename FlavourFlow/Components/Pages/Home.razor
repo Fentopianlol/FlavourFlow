@@ -1,378 +1,183 @@
 ﻿@page "/"
-@using Microsoft.AspNetCore.Components.Web
 @using FlavourFlow.Services
 @using FlavourFlow.Domains
 @rendermode RenderMode.InteractiveServer
-
-@inject NavigationManager Navigation
 @inject RecipeService RecipeService
+@inject NavigationManager Navigation
 
-<PageTitle>FlavorFlow Explorer</PageTitle>
+<PageTitle>Home - FlavourFlow</PageTitle>
 
-<div class="notification-banner @(string.IsNullOrEmpty(notificationMessage) ? "" : "show")">
-    @notificationMessage
-</div>
+@if (!string.IsNullOrEmpty(errorMessage))
+{
+    <div class="alert alert-danger m-4">
+        <strong>Error:</strong> @errorMessage
+    </div>
+}
 
-<div class="hero">
-    <h1>What are you craving?</h1>
-    <p>Find the perfect meal. Fast, fresh, and filtered for the night.</p>
+<div class="hero-section">
+    <h1>Find your next favorite meal</h1>
+    <p class="subtitle">Search by name, ingredient, or tag (e.g. "Vegan")</p>
 
     <div class="search-container">
-        <div class="search-box">
-            <span class="search-icon">🔍</span>
-            <input type="text"
-                   class="search-input"
-                   @bind="searchTerm"
-                   @bind:event="oninput"
-                   @onkeyup="HandleSearchEnter"
-                   placeholder="Search for ingredients (e.g., 'chicken', 'pasta')..." />
-            <button class="search-btn" @onclick="PerformSearch">Go</button>
-        </div>
+        <input type="text" class="search-input" placeholder="What are you craving?"
+               @bind="searchText" @bind:event="oninput" @onkeyup="PerformSearch" />
+        <button class="search-btn" @onclick="PerformSearch">🔍</button>
     </div>
 </div>
 
-<div class="content">
-    <div class="section-header">
-        <h2>Browse by Cuisine</h2>
-        <a href="#" class="view-all">View All</a>
-    </div>
-
-    <div class="cuisine-grid">
-        <div class="cuisine-card italian" @onclick='() => NavigateToCuisine("Italian")'>
-            <span class="cuisine-icon">🍝</span>
-            <h3>Italian</h3>
-            <span class="cuisine-tag">Comfort</span>
+<div class="container mt-5">
+    @if (isLoading)
+    {
+        <div class="text-center"><p class="text-muted">Searching...</p></div>
+    }
+    else if (recipes == null || !recipes.Any())
+    {
+        <div class="empty-search">
+            <span style="font-size: 3rem;">🥦</span>
+            <h3>No recipes found.</h3>
+            <button class="btn-clear" @onclick="ClearSearch">Show All Recipes</button>
         </div>
-        <div class="cuisine-card asian" @onclick='() => NavigateToCuisine("Asian")'>
-            <span class="cuisine-icon">🥢</span>
-            <h3>Asian</h3>
-            <span class="cuisine-tag">Savory & Fast</span>
-        </div>
-        <div class="cuisine-card mexican" @onclick='() => NavigateToCuisine("Mexican")'>
-            <span class="cuisine-icon">🌮</span>
-            <h3>Mexican</h3>
-            <span class="cuisine-tag">Spicy & Fresh</span>
-        </div>
-        <div class="cuisine-card american" @onclick='() => NavigateToCuisine("American")'>
-            <span class="cuisine-icon">🍔</span>
-            <h3>American</h3>
-            <span class="cuisine-tag">Classic</span>
-        </div>
-    </div>
-
-    <div class="filter-tabs">
-        <button class="filter-tab @(activeFilter == "Everything" ? "active" : "")"
-                @onclick='() => SetFilter("Everything")'>
-            Everything
-        </button>
-
-        <button class="filter-tab @(activeFilter == "Under 30 Min" ? "active" : "")"
-                @onclick='() => SetFilter("Under 30 Min")'>
-            ⚡ Under 30 Min
-        </button>
-
-        <button class="filter-tab @(activeFilter == "Leisurely Cook" ? "active" : "")"
-                @onclick='() => SetFilter("Leisurely Cook")'>
-            🍳 Leisurely Cook
-        </button>
-    </div>
-
-    <div class="recipe-grid">
-        @if (recipes == null)
-        {
-            <p>Loading recipes...</p>
-        }
-        else if (recipes.Count == 0)
-        {
-            <p>No recipes found for this filter.</p>
-        }
-        else
-        {
+    }
+    else
+    {
+        <div class="recipe-grid">
             @foreach (var recipe in recipes)
             {
                 <div class="recipe-card" @onclick='() => Navigation.NavigateTo($"/recipe/{recipe.RecipeId}")'>
-                    <div class="image-container">
-                        <img src="@(string.IsNullOrEmpty(recipe.ImageURL) ? "https://images.unsplash.com/photo-1495521821757-a1efb6729352?auto=format&fit=crop&w=800&q=80" : recipe.ImageURL)"
-                             alt="@recipe.Title"
-                             class="recipe-img" />
-                        <div class="recipe-time">@recipe.CookTime min</div>
-                    </div>
-
-                    <div class="recipe-info">
-                        <div class="recipe-category">
-                            <span>@recipe.Category?.Name?.ToUpper()</span>
-                            <div class="recipe-rating">
-                                <span>⭐</span> 4.8
-                            </div>
+                    <div class="card-img" style="background-image: url('@(string.IsNullOrEmpty(recipe.ImageURL) ? "/images/default.jpg" : recipe.ImageURL)');"></div>
+                    <div class="card-body">
+                        <div class="card-header-row">
+                            <span class="category-badge">@(recipe.Category?.Name ?? "Uncategorized")</span>
+                            <span class="rating">⭐ @(recipe.AverageRating.ToString("0.0"))</span>
                         </div>
-                        <div class="recipe-title">@recipe.Title</div>
-                        <div class="recipe-tags">
-                            <span class="recipe-tag">@recipe.Difficulty</span>
+
+                        <h5>@recipe.Title</h5>
+
+                        <div class="card-meta">
+                            <span>⏱ @recipe.CookTime min</span>
+                            <span>• @(recipe.Difficulty ?? "Medium")</span>
+                        </div>
+
+                        <div class="tags-row">
+                            @if (!string.IsNullOrEmpty(recipe.Tags))
+                            {
+                                @foreach (var tag in recipe.Tags.Split(',').Take(3))
+                                {
+                                    <span class="tag-badge">@tag</span>
+                                }
+                            }
                         </div>
                     </div>
                 </div>
             }
-        }
-    </div>
+        </div>
+    }
 </div>
 
 @code {
-    // --- THIS CODE BLOCK FIXES "recipes does not exist" ---
-    private string notificationMessage = "";
-    private string activeFilter = "Everything";
-    private string searchTerm = "";
-    private List<Recipe>? recipes;
+    private List<Recipe> recipes = new();
+    private string searchText = "";
+    private bool isLoading = true;
+    private string errorMessage = "";
 
     protected override async Task OnInitializedAsync()
     {
-        await SetFilter("Everything");
-    }
-
-    private void NavigateToCuisine(string cuisine)
-    {
-        Navigation.NavigateTo($"/cuisine/{cuisine}");
-    }
-
-    private async Task ShowNotification(string message)
-    {
-        notificationMessage = message;
-        StateHasChanged();
-        await Task.Delay(3000);
-        notificationMessage = "";
-        StateHasChanged();
-    }
-
-    private async Task SetFilter(string filterName)
-    {
-        activeFilter = filterName;
-        // This fetches real data from the database
-        recipes = await RecipeService.GetRecipesByFilterAsync(filterName);
+        await PerformSearch();
     }
 
     private async Task PerformSearch()
     {
-        if (!string.IsNullOrWhiteSpace(searchTerm))
+        try
         {
-            await ShowNotification($"Searching for: {searchTerm}");
+            isLoading = true;
+            errorMessage = "";
+            recipes = await RecipeService.SearchRecipesAsync(searchText);
+
+            // --- FIX: EXPLICIT CLIENT-SIDE SORTING ---
+            // This guarantees the newest recipes appear first, even if the DB order is mixed
+            recipes = recipes.OrderByDescending(r => r.DateCreated).ToList();
+        }
+        catch (Exception ex)
+        {
+            errorMessage = ex.Message;
+            Console.WriteLine(ex.ToString());
+        }
+        finally
+        {
+            isLoading = false;
         }
     }
 
-    private async Task HandleSearchEnter(KeyboardEventArgs e)
+    private async Task ClearSearch()
     {
-        if (e.Key == "Enter") await PerformSearch();
+        searchText = "";
+        await PerformSearch();
     }
 }
 
 <style>
-    /* === IMAGE FIX STYLES === */
-    .image-container {
-        position: relative;
-        height: 180px;
-        overflow: hidden;
-        background-color: #fff5f2;
-    }
-
-    .recipe-img {
-        width: 100%;
-        height: 100%;
-        object-fit: cover; /* Ensures image fills box perfectly */
-        display: block;
-        transition: transform 0.3s ease;
-    }
-
-    .recipe-card:hover .recipe-img {
-        transform: scale(1.05);
-    }
-
-    .recipe-time {
-        position: absolute;
-        top: 15px;
-        right: 15px;
-        background: white;
-        padding: 5px 10px;
-        border-radius: 10px;
-        font-size: 0.8rem;
-        font-weight: bold;
-        box-shadow: 0 2px 8px rgba(0,0,0,0.1);
-        z-index: 2;
-    }
-
-    /* === GLOBAL STYLES === */
-    .hero {
+    .hero-section {
+        background: linear-gradient(135deg, #fff5f0 0%, #fff0e6 100%);
+        padding: 80px 20px;
         text-align: center;
-        padding: 4rem 1rem;
-        background: white;
+        border-radius: 0 0 50px 50px;
+        margin-bottom: 40px;
     }
 
-        .hero h1 {
-            font-size: 2.5rem;
-            margin-bottom: 0.5rem;
+        .hero-section h1 {
+            font-size: 3rem;
+            font-weight: 800;
             color: #333;
+            margin-bottom: 10px;
         }
 
-        .hero p {
-            color: #666;
-            margin-bottom: 2rem;
-        }
+    .subtitle {
+        color: #666;
+        font-size: 1.2rem;
+        margin-bottom: 30px;
+    }
 
     .search-container {
-        display: flex;
-        justify-content: center;
-    }
-
-    .search-box {
-        display: flex;
-        align-items: center;
-        background: white;
-        border: 1px solid #ddd;
+        position: relative;
+        max-width: 600px;
+        margin: 0 auto;
+        box-shadow: 0 10px 40px rgba(0,0,0,0.1);
         border-radius: 50px;
-        padding: 4px;
-        width: 100%;
-        max-width: 500px;
-        box-shadow: 0 4px 12px rgba(0,0,0,0.08);
-        transition: box-shadow 0.2s;
-    }
-
-        .search-box:focus-within {
-            box-shadow: 0 4px 20px rgba(255, 107, 53, 0.2);
-            border-color: #ff6b35;
-        }
-
-    .search-icon {
-        padding-left: 15px;
-        font-size: 1.2rem;
-        color: #888;
+        display: flex;
+        background: white;
+        padding: 5px;
     }
 
     .search-input {
         border: none;
-        outline: none;
         flex: 1;
-        padding: 12px;
-        font-size: 1rem;
-        background: transparent;
+        padding: 15px 30px;
+        font-size: 1.1rem;
+        border-radius: 50px;
+        outline: none;
     }
 
     .search-btn {
+        width: 50px;
+        height: 50px;
+        border-radius: 50%;
+        border: none;
         background: #ff6b35;
         color: white;
-        border: none;
-        padding: 10px 24px;
-        border-radius: 40px;
+        font-size: 1.2rem;
         cursor: pointer;
-        font-weight: bold;
-        transition: background 0.2s;
+        transition: transform 0.2s;
     }
 
         .search-btn:hover {
-            background: #e85a2a;
-        }
-
-    .content {
-        max-width: 1200px;
-        margin: 0 auto;
-        padding: 2rem;
-    }
-
-    .section-header {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        margin-bottom: 1.5rem;
-    }
-
-    .view-all {
-        color: #ff6b35;
-        text-decoration: none;
-        font-weight: bold;
-    }
-
-    .cuisine-grid {
-        display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-        gap: 1.5rem;
-        margin-bottom: 3rem;
-    }
-
-    .cuisine-card {
-        padding: 2rem;
-        border-radius: 20px;
-        text-align: center;
-        cursor: pointer;
-        transition: transform 0.2s;
-        color: white;
-        position: relative;
-        overflow: hidden;
-    }
-
-        .cuisine-card:hover {
-            transform: translateY(-5px);
-        }
-
-    .italian {
-        background: linear-gradient(135deg, #b05a5a 0%, #d47e7e 100%);
-    }
-
-    .asian {
-        background: linear-gradient(135deg, #a65f5f 0%, #c57e7e 100%);
-    }
-
-    .mexican {
-        background: linear-gradient(135deg, #d4af37 0%, #eacda3 100%);
-    }
-
-    .american {
-        background: linear-gradient(135deg, #5b73a6 0%, #7e94c5 100%);
-    }
-
-    .cuisine-icon {
-        font-size: 2.5rem;
-        display: block;
-        margin-bottom: 1rem;
-    }
-
-    .cuisine-tag {
-        display: inline-block;
-        background: rgba(255,255,255,0.25);
-        padding: 5px 12px;
-        border-radius: 12px;
-        font-size: 0.8rem;
-        margin-top: 0.5rem;
-    }
-
-    .filter-tabs {
-        display: flex;
-        gap: 1rem;
-        margin-bottom: 2rem;
-        flex-wrap: wrap;
-    }
-
-    .filter-tab {
-        background: white;
-        border: 1px solid #eee;
-        padding: 10px 20px;
-        border-radius: 30px;
-        cursor: pointer;
-        font-weight: 500;
-        color: #666;
-        transition: all 0.2s;
-    }
-
-        .filter-tab:hover {
-            background: #fafafa;
-        }
-
-        .filter-tab.active {
-            background: #ff6b35;
-            color: white;
-            border-color: #ff6b35;
-            box-shadow: 0 4px 10px rgba(255, 107, 53, 0.3);
+            transform: scale(1.1);
+            background: #e55a2b;
         }
 
     .recipe-grid {
         display: grid;
         grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
-        gap: 2rem;
+        gap: 30px;
     }
 
     .recipe-card {
@@ -380,60 +185,93 @@
         border-radius: 20px;
         overflow: hidden;
         box-shadow: 0 4px 15px rgba(0,0,0,0.05);
-        transition: transform 0.2s;
         cursor: pointer;
+        transition: transform 0.2s, box-shadow 0.2s;
+        border: 1px solid #f0f0f0;
     }
 
         .recipe-card:hover {
             transform: translateY(-5px);
+            box-shadow: 0 10px 25px rgba(0,0,0,0.1);
         }
 
-    .recipe-info {
-        padding: 1.5rem;
+    .card-img {
+        height: 200px;
+        background-size: cover;
+        background-position: center;
     }
 
-    .recipe-category {
+    .card-body {
+        padding: 20px;
+    }
+
+    .card-header-row {
         display: flex;
         justify-content: space-between;
-        font-size: 0.75rem;
-        color: #999;
-        font-weight: 800;
-        letter-spacing: 0.5px;
-        margin-bottom: 0.5rem;
+        margin-bottom: 10px;
+        font-size: 0.85rem;
     }
 
-    .recipe-title {
+    .category-badge {
+        color: #ff6b35;
         font-weight: bold;
-        font-size: 1.1rem;
-        margin-bottom: 0.8rem;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+    }
+
+    .rating {
+        color: #ffb400;
+        font-weight: bold;
+    }
+
+    h5 {
+        font-weight: 800;
         color: #333;
+        margin: 0 0 5px 0;
+        font-size: 1.2rem;
     }
 
-    .recipe-tag {
-        background: #f4f4f4;
-        padding: 6px 12px;
-        border-radius: 8px;
-        font-size: 0.8rem;
+    .card-meta {
+        color: #888;
+        font-size: 0.9rem;
+        margin-bottom: 15px;
+    }
+
+    .tags-row {
+        display: flex;
+        gap: 5px;
+        flex-wrap: wrap;
+    }
+
+    .tag-badge {
+        background: #f8f9fa;
         color: #666;
+        font-size: 0.75rem;
+        padding: 4px 10px;
+        border-radius: 10px;
+        font-weight: 600;
     }
 
-    .notification-banner {
-        position: fixed;
-        top: 20px;
-        left: 50%;
-        transform: translateX(-50%) translateY(-20px);
-        background-color: #333;
-        color: white;
-        padding: 12px 24px;
-        border-radius: 50px;
-        box-shadow: 0 4px 12px rgba(0,0,0,0.2);
-        z-index: 1000;
-        opacity: 0;
-        transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+    .empty-search {
+        text-align: center;
+        padding: 50px;
+        color: #888;
     }
 
-        .notification-banner.show {
-            opacity: 1;
-            transform: translateX(-50%) translateY(0);
+    .btn-clear {
+        background: none;
+        border: 2px solid #ddd;
+        padding: 10px 25px;
+        border-radius: 30px;
+        margin-top: 20px;
+        cursor: pointer;
+        font-weight: bold;
+        color: #555;
+        transition: all 0.2s;
+    }
+
+        .btn-clear:hover {
+            border-color: #ff6b35;
+            color: #ff6b35;
         }
 </style>

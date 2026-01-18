@@ -1,0 +1,385 @@
+﻿@page "/explore"
+@using FlavourFlow.Services
+@using FlavourFlow.Domains
+@rendermode RenderMode.InteractiveServer
+@inject RecipeService RecipeService
+@inject NavigationManager Navigation
+
+<PageTitle>Explore Recipes - FlavourFlow</PageTitle>
+
+<div class="explore-container">
+    <div class="search-header">
+        <h1>Explore Flavors</h1>
+        <div class="search-row">
+            <div class="search-wrapper">
+                <span class="search-icon">🔍</span>
+                <input type="text"
+                       @bind="searchTerm"
+                       @bind:event="oninput"
+                       @onkeyup="FilterRecipes"
+                       placeholder="Search recipes, ingredients, or chefs..." />
+            </div>
+            <button class="filter-toggle-btn @(showFilters ? "active" : "")" @onclick="ToggleFilters">
+                <span class="icon">⚙️</span> Filters
+            </button>
+        </div>
+    </div>
+
+    @if (showFilters)
+    {
+        <div class="filters-area">
+            <div class="filter-group">
+                <span class="filter-label">Cuisine:</span>
+                <button class="filter-pill @(activeCategory == "All" ? "active" : "")" @onclick='() => SetCategory("All")'>All</button>
+                <button class="filter-pill @(activeCategory == "Italian" ? "active" : "")" @onclick='() => SetCategory("Italian")'>🍝 Italian</button>
+                <button class="filter-pill @(activeCategory == "Asian" ? "active" : "")" @onclick='() => SetCategory("Asian")'>🥢 Asian</button>
+                <button class="filter-pill @(activeCategory == "Mexican" ? "active" : "")" @onclick='() => SetCategory("Mexican")'>🌮 Mexican</button>
+                <button class="filter-pill @(activeCategory == "American" ? "active" : "")" @onclick='() => SetCategory("American")'>🍔 American</button>
+                <button class="filter-pill @(activeCategory == "French" ? "active" : "")" @onclick='() => SetCategory("French")'>🥐 French</button>
+            </div>
+
+            <div class="filter-group">
+                <span class="filter-label">Time:</span>
+                <button class="filter-pill @(activeTimeFilter == "Any" ? "active" : "")" @onclick='() => SetTime("Any")'>Any Time</button>
+                <button class="filter-pill @(activeTimeFilter == "Fast" ? "active" : "")" @onclick='() => SetTime("Fast")'>⚡ &lt; 30m</button>
+            </div>
+
+            <div class="filter-group">
+                <span class="filter-label">Rating:</span>
+                <button class="filter-pill @(minRating == 0 ? "active" : "")" @onclick='() => SetRating(0)'>Any</button>
+                <button class="filter-pill @(minRating == 4 ? "active" : "")" @onclick='() => SetRating(4)'>⭐ 4+</button>
+                <button class="filter-pill @(minRating == 3 ? "active" : "")" @onclick='() => SetRating(3)'>⭐ 3+</button>
+            </div>
+        </div>
+    }
+
+    <div class="recipe-grid">
+        @if (filteredRecipes == null)
+        {
+            <p>Loading...</p>
+        }
+        else if (!filteredRecipes.Any())
+        {
+            <div class="empty-state">
+                <h3>No recipes found 😔</h3>
+                <p>Try adjusting your search or filters.</p>
+            </div>
+        }
+        else
+        {
+            @foreach (var recipe in filteredRecipes)
+            {
+                <div class="recipe-card" @onclick='() => Navigation.NavigateTo($"/recipe/{recipe.RecipeId}")'>
+                    <div class="image-container">
+                        <img src="@(string.IsNullOrEmpty(recipe.ImageURL) ? "/images/default.jpg" : recipe.ImageURL)"
+                             alt="@recipe.Title" class="recipe-img" />
+                        <div class="recipe-time">@recipe.CookTime min</div>
+                    </div>
+                    <div class="recipe-info">
+                        <div class="recipe-meta">
+                            <span class="category-tag">@recipe.Category?.Name?.ToUpper()</span>
+                            <span class="rating">⭐ @recipe.AverageRating.ToString("0.0")</span>
+                        </div>
+                        <div class="recipe-title">@recipe.Title</div>
+                    </div>
+                </div>
+            }
+        }
+    </div>
+</div>
+
+@code {
+    private List<Recipe> allRecipes = new();
+    private List<Recipe> filteredRecipes = new();
+
+    // Filter States
+    private bool showFilters = false;
+    private string searchTerm = "";
+    private string activeCategory = "All";
+    private string activeTimeFilter = "Any";
+    private int minRating = 0;
+
+    protected override async Task OnInitializedAsync()
+    {
+        allRecipes = await RecipeService.GetRecipesByFilterAsync("Everything");
+        filteredRecipes = allRecipes.OrderByDescending(r => r.DateCreated).ToList(); // Sort initially
+    }
+
+    private void ToggleFilters()
+    {
+        showFilters = !showFilters;
+    }
+
+    private void SetCategory(string category)
+    {
+        activeCategory = category;
+        FilterRecipes();
+    }
+
+    private void SetTime(string time)
+    {
+        activeTimeFilter = time;
+        FilterRecipes();
+    }
+
+    private void SetRating(int rating)
+    {
+        minRating = rating;
+        FilterRecipes();
+    }
+
+    private void FilterRecipes()
+    {
+        var query = allRecipes.AsQueryable();
+
+        // 1. Filter by Category
+        if (activeCategory != "All")
+        {
+            query = query.Where(r => r.Category != null && r.Category.Name == activeCategory);
+        }
+
+        // 2. Filter by Time
+        if (activeTimeFilter == "Fast")
+        {
+            query = query.Where(r => r.CookTime <= 30);
+        }
+
+        // 3. Filter by Rating
+        if (minRating > 0)
+        {
+            query = query.Where(r => r.AverageRating >= minRating);
+        }
+
+        // 4. Filter by Search Text
+        if (!string.IsNullOrWhiteSpace(searchTerm))
+        {
+            query = query.Where(r => r.Title.Contains(searchTerm, StringComparison.OrdinalIgnoreCase) ||
+                                     (r.Category != null && r.Category.Name.Contains(searchTerm, StringComparison.OrdinalIgnoreCase)));
+        }
+
+        // --- FIX: Explicitly Sort by Newest First ---
+        filteredRecipes = query.OrderByDescending(r => r.DateCreated).ToList();
+    }
+}
+
+<style>
+    .explore-container {
+        max-width: 1200px;
+        margin: 0 auto;
+        padding: 20px;
+    }
+
+    .search-header {
+        margin-bottom: 20px;
+        text-align: center;
+    }
+
+        .search-header h1 {
+            font-weight: 800;
+            color: #333;
+            margin-bottom: 20px;
+        }
+
+    /* Search Row Flexbox */
+    .search-row {
+        display: flex;
+        justify-content: center;
+        gap: 15px;
+        align-items: center;
+        max-width: 700px;
+        margin: 0 auto;
+    }
+
+    .search-wrapper {
+        position: relative;
+        flex-grow: 1;
+    }
+
+        .search-wrapper input {
+            width: 100%;
+            padding: 15px 15px 15px 45px;
+            border-radius: 50px;
+            border: 1px solid #ddd;
+            font-size: 1.1rem;
+            outline: none;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.05);
+            transition: all 0.2s;
+        }
+
+            .search-wrapper input:focus {
+                border-color: #ff6b35;
+                box-shadow: 0 4px 20px rgba(255, 107, 53, 0.2);
+            }
+
+    .search-icon {
+        position: absolute;
+        left: 15px;
+        top: 50%;
+        transform: translateY(-50%);
+        font-size: 1.2rem;
+        opacity: 0.5;
+    }
+
+    /* Toggle Button */
+    .filter-toggle-btn {
+        background: white;
+        border: 1px solid #ddd;
+        border-radius: 50px;
+        padding: 12px 25px;
+        font-weight: bold;
+        color: #555;
+        cursor: pointer;
+        transition: all 0.2s;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        box-shadow: 0 4px 15px rgba(0,0,0,0.05);
+    }
+
+        .filter-toggle-btn:hover {
+            background-color: #f9f9f9;
+            transform: translateY(-2px);
+        }
+
+        .filter-toggle-btn.active {
+            background-color: #ff6b35;
+            color: white;
+            border-color: #ff6b35;
+        }
+
+    /* Collapsible Filters Area */
+    .filters-area {
+        background: #fdfdfd;
+        border: 1px solid #eee;
+        border-radius: 20px;
+        padding: 25px;
+        margin-bottom: 40px;
+        display: flex;
+        flex-direction: column;
+        gap: 15px;
+        align-items: center;
+        animation: slideDown 0.3s ease-out;
+    }
+
+    @@keyframes slideDown {
+        from {
+            opacity: 0;
+            transform: translateY(-10px);
+        }
+
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+
+    .filter-group {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px;
+        justify-content: center;
+        align-items: center;
+    }
+
+    .filter-label {
+        font-weight: bold;
+        color: #888;
+        margin-right: 5px;
+        font-size: 0.9rem;
+    }
+
+    .filter-pill {
+        background: white;
+        border: 1px solid #eee;
+        padding: 8px 16px;
+        border-radius: 20px;
+        cursor: pointer;
+        color: #555;
+        font-weight: 500;
+        transition: all 0.2s;
+    }
+
+        .filter-pill:hover {
+            background: #f9f9f9;
+            transform: translateY(-2px);
+        }
+
+        .filter-pill.active {
+            background: #ff6b35;
+            color: white;
+            border-color: #ff6b35;
+            box-shadow: 0 4px 10px rgba(255, 107, 53, 0.3);
+        }
+
+    .recipe-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+        gap: 25px;
+    }
+
+    .recipe-card {
+        background: white;
+        border-radius: 15px;
+        overflow: hidden;
+        box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+        cursor: pointer;
+        transition: transform 0.2s;
+    }
+
+        .recipe-card:hover {
+            transform: translateY(-5px);
+        }
+
+    .image-container {
+        position: relative;
+        height: 160px;
+        overflow: hidden;
+    }
+
+    .recipe-img {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+    }
+
+    .recipe-time {
+        position: absolute;
+        top: 10px;
+        right: 10px;
+        background: white;
+        padding: 4px 8px;
+        border-radius: 8px;
+        font-size: 0.75rem;
+        font-weight: bold;
+    }
+
+    .recipe-info {
+        padding: 15px;
+    }
+
+    .recipe-meta {
+        display: flex;
+        justify-content: space-between;
+        font-size: 0.75rem;
+        color: #888;
+        font-weight: 700;
+        margin-bottom: 5px;
+    }
+
+    .category-tag {
+        color: #ff6b35;
+    }
+
+    .recipe-title {
+        font-weight: bold;
+        font-size: 1rem;
+        color: #333;
+    }
+
+    .empty-state {
+        text-align: center;
+        grid-column: 1 / -1;
+        padding: 40px;
+        color: #888;
+    }
+</style>

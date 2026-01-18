@@ -12,8 +12,8 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace FlavourFlow.Migrations
 {
     [DbContext(typeof(FlavourFlowContext))]
-    [Migration("20260117160109_FixedSchema")]
-    partial class FixedSchema
+    [Migration("20260118120904_InitialCreate")]
+    partial class InitialCreate
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
@@ -119,6 +119,57 @@ namespace FlavourFlow.Migrations
                     b.ToTable("AspNetUsers", (string)null);
                 });
 
+            modelBuilder.Entity("FlavourFlow.Domains.Ingredient", b =>
+                {
+                    b.Property<int>("IngredientId")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("IngredientId"));
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("Quantity")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<int>("RecipeId")
+                        .HasColumnType("int");
+
+                    b.HasKey("IngredientId");
+
+                    b.HasIndex("RecipeId");
+
+                    b.ToTable("Ingredient");
+                });
+
+            modelBuilder.Entity("FlavourFlow.Domains.Instruction", b =>
+                {
+                    b.Property<int>("InstructionId")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("InstructionId"));
+
+                    b.Property<int>("RecipeId")
+                        .HasColumnType("int");
+
+                    b.Property<string>("StepDescription")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<int>("StepNumber")
+                        .HasColumnType("int");
+
+                    b.HasKey("InstructionId");
+
+                    b.HasIndex("RecipeId");
+
+                    b.ToTable("Instruction");
+                });
+
             modelBuilder.Entity("FlavourFlow.Domains.Recipe", b =>
                 {
                     b.Property<int>("RecipeId")
@@ -127,11 +178,14 @@ namespace FlavourFlow.Migrations
 
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("RecipeId"));
 
-                    b.Property<int>("CategoryId")
+                    b.Property<int?>("CategoryId")
                         .HasColumnType("int");
 
                     b.Property<int>("CookTime")
                         .HasColumnType("int");
+
+                    b.Property<DateTime>("DateCreated")
+                        .HasColumnType("datetime2");
 
                     b.Property<string>("Description")
                         .IsRequired()
@@ -145,12 +199,15 @@ namespace FlavourFlow.Migrations
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
 
+                    b.Property<string>("Tags")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
                     b.Property<string>("Title")
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
 
                     b.Property<string>("UserId")
-                        .IsRequired()
                         .HasColumnType("nvarchar(450)");
 
                     b.HasKey("RecipeId");
@@ -196,55 +253,31 @@ namespace FlavourFlow.Migrations
                     b.ToTable("Review");
                 });
 
-            modelBuilder.Entity("FlavourFlow.Models.Ingredient", b =>
+            modelBuilder.Entity("FlavourFlow.Domains.SavedRecipe", b =>
                 {
-                    b.Property<int>("IngredientId")
+                    b.Property<int>("Id")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("int");
 
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("IngredientId"));
-
-                    b.Property<string>("Name")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<string>("Quantity")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(max)");
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
 
                     b.Property<int>("RecipeId")
                         .HasColumnType("int");
 
-                    b.HasKey("IngredientId");
+                    b.Property<DateTime>("SavedAt")
+                        .HasColumnType("datetime2");
 
-                    b.HasIndex("RecipeId");
-
-                    b.ToTable("Ingredient");
-                });
-
-            modelBuilder.Entity("FlavourFlow.Models.Instruction", b =>
-                {
-                    b.Property<int>("InstructionId")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int");
-
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("InstructionId"));
-
-                    b.Property<int>("RecipeId")
-                        .HasColumnType("int");
-
-                    b.Property<string>("StepDescription")
+                    b.Property<string>("UserId")
                         .IsRequired()
-                        .HasColumnType("nvarchar(max)");
+                        .HasColumnType("nvarchar(450)");
 
-                    b.Property<int>("StepNumber")
-                        .HasColumnType("int");
-
-                    b.HasKey("InstructionId");
+                    b.HasKey("Id");
 
                     b.HasIndex("RecipeId");
 
-                    b.ToTable("Instruction");
+                    b.HasIndex("UserId");
+
+                    b.ToTable("SavedRecipes");
                 });
 
             modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityRole", b =>
@@ -380,19 +413,37 @@ namespace FlavourFlow.Migrations
                     b.ToTable("AspNetUserTokens", (string)null);
                 });
 
+            modelBuilder.Entity("FlavourFlow.Domains.Ingredient", b =>
+                {
+                    b.HasOne("FlavourFlow.Domains.Recipe", "Recipe")
+                        .WithMany("Ingredients")
+                        .HasForeignKey("RecipeId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Recipe");
+                });
+
+            modelBuilder.Entity("FlavourFlow.Domains.Instruction", b =>
+                {
+                    b.HasOne("FlavourFlow.Domains.Recipe", "Recipe")
+                        .WithMany("Instructions")
+                        .HasForeignKey("RecipeId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Recipe");
+                });
+
             modelBuilder.Entity("FlavourFlow.Domains.Recipe", b =>
                 {
                     b.HasOne("FlavourFlow.Domains.Category", "Category")
                         .WithMany()
-                        .HasForeignKey("CategoryId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
+                        .HasForeignKey("CategoryId");
 
                     b.HasOne("FlavourFlow.Domains.FlavourFlowUser", "User")
                         .WithMany("SavedRecipes")
-                        .HasForeignKey("UserId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
+                        .HasForeignKey("UserId");
 
                     b.Navigation("Category");
 
@@ -404,7 +455,7 @@ namespace FlavourFlow.Migrations
                     b.HasOne("FlavourFlow.Domains.Recipe", "Recipe")
                         .WithMany("Reviews")
                         .HasForeignKey("RecipeId")
-                        .OnDelete(DeleteBehavior.Restrict)
+                        .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
                     b.HasOne("FlavourFlow.Domains.FlavourFlowUser", "User")
@@ -418,22 +469,23 @@ namespace FlavourFlow.Migrations
                     b.Navigation("User");
                 });
 
-            modelBuilder.Entity("FlavourFlow.Models.Ingredient", b =>
+            modelBuilder.Entity("FlavourFlow.Domains.SavedRecipe", b =>
                 {
-                    b.HasOne("FlavourFlow.Domains.Recipe", null)
-                        .WithMany("Ingredients")
+                    b.HasOne("FlavourFlow.Domains.Recipe", "Recipe")
+                        .WithMany()
                         .HasForeignKey("RecipeId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
-                });
 
-            modelBuilder.Entity("FlavourFlow.Models.Instruction", b =>
-                {
-                    b.HasOne("FlavourFlow.Domains.Recipe", null)
-                        .WithMany("Instructions")
-                        .HasForeignKey("RecipeId")
+                    b.HasOne("FlavourFlow.Domains.FlavourFlowUser", "User")
+                        .WithMany()
+                        .HasForeignKey("UserId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
+
+                    b.Navigation("Recipe");
+
+                    b.Navigation("User");
                 });
 
             modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityRoleClaim<string>", b =>

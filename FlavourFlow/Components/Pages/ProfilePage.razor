@@ -36,7 +36,10 @@
                 @if (isCurrentUser)
                 {
                     <div class="action-buttons">
-                        <button class="btn-secondary">Edit Profile</button>
+                        <a href="Account/Manage" class="btn-secondary">Edit Profile</a>
+
+                        <a href="add-recipe" class="btn-primary-custom">＋ Add Recipe</a>
+
                         <button class="btn-danger-outline" @onclick="RequestLogout">Log Out</button>
                     </div>
                 }
@@ -52,7 +55,7 @@
                     <span class="stat-label">Saved</span>
                 </div>
                 <div class="stat-item">
-                    <span class="stat-val">0</span>
+                    <span class="stat-val">@UserProfile.ReviewCount</span>
                     <span class="stat-label">Reviews</span>
                 </div>
             </div>
@@ -74,7 +77,7 @@
     <div class="content-area">
         @if (isLoading)
         {
-            <p class="loading-text">Loading recipes...</p>
+            <p class="loading-text">Loading profile...</p>
         }
         else if (activeTab == "created")
         {
@@ -89,10 +92,7 @@
             }
             else
             {
-                <div class="empty-state">
-                    <span>👨‍🍳</span>
-                    <p>No recipes posted yet.</p>
-                </div>
+                <div class="empty-state"><span>👨‍🍳</span><p>No recipes posted yet.</p></div>
             }
         }
         else if (activeTab == "saved")
@@ -108,58 +108,64 @@
             }
             else
             {
-                <div class="empty-state">
-                    <span>❤️</span>
-                    <p>No recipes saved yet.</p>
-                </div>
+                <div class="empty-state"><span>❤️</span><p>No recipes saved yet.</p></div>
             }
         }
         else if (activeTab == "reviews")
         {
-            <div class="empty-state">
-                <span>⭐</span>
-                <p>Reviews coming soon!</p>
-            </div>
+            @if (userReviews.Any())
+            {
+                <div class="reviews-grid">
+                    @foreach (var review in userReviews)
+                    {
+                        <div class="profile-review-card" @onclick='() => Navigation.NavigateTo($"/recipe/{review.RecipeId}")'>
+                            <div class="review-top">
+                                <strong>@(review.Recipe?.Title ?? "Unknown Recipe")</strong>
+                                <span class="stars">
+                                    @for (int i = 0; i < review.Rating; i++)
+                                    {
+                                        <span>★</span>
+                                    }
+                                </span>
+                            </div>
+                            <p class="review-comment">"@review.Comment"</p>
+                            <div class="review-date">@review.CreatedAt.ToShortDateString()</div>
+                        </div>
+                    }
+                </div>
+            }
+            else
+            {
+                <div class="empty-state">
+                    <span>⭐</span>
+                    <p>No reviews written yet.</p>
+                </div>
+            }
         }
     </div>
 </div>
 
-@if (showLogoutConfirmation)
-{
-    <div class="modal-backdrop">
-        <div class="modal-content">
-            <h3>Log Out?</h3>
-            <p>Are you sure you want to leave?</p>
-            <div class="modal-actions">
-                <button class="btn-cancel" @onclick="() => showLogoutConfirmation = false">Cancel</button>
-                <button class="btn-confirm" @onclick="ConfirmLogout">Log Out</button>
-            </div>
-        </div>
-    </div>
-}
-
 @code {
-    [Parameter]
-    public string? UserId { get; set; }
+    [Parameter] public string? UserId { get; set; }
 
-    // Internal Data Class with Counts
     public class UserData
     {
         public string Id { get; set; } = "";
         public string Name { get; set; } = "Loading...";
         public string Email { get; set; } = "";
         public string AvatarUrl { get; set; } = "";
-        public int SavedCount { get; set; }   // <--- Added property
-        public int CreatedCount { get; set; } // <--- Added property
+        public int SavedCount { get; set; }
+        public int CreatedCount { get; set; }
+        public int ReviewCount { get; set; }
     }
 
     private UserData UserProfile { get; set; } = new();
     private List<Recipe> createdRecipes = new();
     private List<Recipe> savedRecipes = new();
+    private List<Review> userReviews = new();
 
     private bool isLoading = true;
     private bool isCurrentUser = false;
-    private bool showLogoutConfirmation = false;
     private string activeTab = "created";
 
     protected override async Task OnInitializedAsync()
@@ -192,6 +198,7 @@
         {
             createdRecipes = await RecipeService.GetRecipesByCreatorAsync(user.Id);
             savedRecipes = await UserService.GetSavedRecipesAsync(user.Id);
+            userReviews = await RecipeService.GetReviewsByUserIdAsync(user.Id);
 
             UserProfile = new UserData
             {
@@ -200,7 +207,8 @@
                 Email = user.Email ?? "",
                 AvatarUrl = $"https://ui-avatars.com/api/?background=random&name={user.FirstName}+{user.LastName}&size=200",
                 SavedCount = savedRecipes.Count,
-                CreatedCount = createdRecipes.Count
+                CreatedCount = createdRecipes.Count,
+                ReviewCount = userReviews.Count
             };
         }
         else
@@ -223,8 +231,7 @@
         };
     }
 
-    private void RequestLogout() => showLogoutConfirmation = true;
-    private void ConfirmLogout() => Navigation.NavigateTo("logout", forceLoad: true);
+    private void RequestLogout() => Navigation.NavigateTo("/logout");
 
     // Mini Recipe Card Component
     private RenderFragment<Recipe> RecipeCard => recipe => __builder =>
@@ -257,7 +264,6 @@
         overflow: hidden;
         box-shadow: 0 4px 20px rgba(0,0,0,0.08);
         margin-bottom: 2rem;
-        position: relative;
     }
 
     .banner {
@@ -270,7 +276,6 @@
         display: flex;
         align-items: flex-end;
         gap: 20px;
-        position: relative;
         margin-top: -50px;
     }
 
@@ -328,7 +333,27 @@
         border-radius: 20px;
         font-weight: 600;
         cursor: pointer;
+        text-decoration: none;
+        font-size: 0.9rem;
     }
+
+    /* NEW PRIMARY BUTTON STYLE */
+    .btn-primary-custom {
+        background: #ff6b35;
+        color: white;
+        border: none;
+        padding: 6px 15px;
+        border-radius: 20px;
+        font-weight: 600;
+        cursor: pointer;
+        text-decoration: none;
+        font-size: 0.9rem;
+    }
+
+        .btn-primary-custom:hover {
+            background: #e55a2b;
+            color: white;
+        }
 
     .btn-danger-outline {
         background: white;
@@ -338,6 +363,7 @@
         border-radius: 20px;
         font-weight: 600;
         cursor: pointer;
+        font-size: 0.9rem;
     }
 
         .btn-danger-outline:hover {
@@ -458,6 +484,7 @@
         color: #888;
         background: white;
         border-radius: 15px;
+        grid-column: 1 / -1;
     }
 
         .empty-state span {
@@ -470,6 +497,63 @@
         text-align: center;
         color: #888;
         margin-top: 40px;
+    }
+
+    /* === REVIEWS CSS === */
+    .reviews-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+        gap: 20px;
+    }
+
+    .profile-review-card {
+        background: white;
+        padding: 20px;
+        border-radius: 15px;
+        box-shadow: 0 4px 15px rgba(0,0,0,0.05);
+        cursor: pointer;
+        transition: transform 0.2s;
+        border: 1px solid #eee;
+    }
+
+        .profile-review-card:hover {
+            transform: translateY(-3px);
+            border-color: #ff6b35;
+        }
+
+    .review-top {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 10px;
+    }
+
+        .review-top strong {
+            color: #333;
+            font-size: 1.1rem;
+            font-weight: 700;
+        }
+
+        .review-top .stars {
+            color: #ffb400;
+            font-size: 0.9rem;
+        }
+
+    .review-comment {
+        color: #555;
+        font-style: italic;
+        line-height: 1.5;
+        margin-bottom: 15px;
+        display: -webkit-box;
+        -webkit-line-clamp: 3;
+        -webkit-box-orient: vertical;
+        overflow: hidden;
+    }
+
+    .review-date {
+        font-size: 0.8rem;
+        color: #999;
+        text-align: right;
     }
 
     /* === MOBILE === */
@@ -487,6 +571,10 @@
 
         .stats-row {
             margin-top: 20px;
+        }
+
+        .reviews-grid {
+            grid-template-columns: 1fr;
         }
     }
 </style>

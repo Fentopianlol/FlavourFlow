@@ -1,4 +1,5 @@
 ﻿using FlavourFlow.Data;
+using FlavourFlow.Domains;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Components.Authorization;
 using Microsoft.AspNetCore.Http.Extensions;
@@ -20,11 +21,15 @@ namespace Microsoft.AspNetCore.Routing
 
             accountGroup.MapPost("/Logout", async (
                 ClaimsPrincipal user,
-                SignInManager<FlavourFlow.Domains.FlavourFlowUser> signInManager,
+                SignInManager<FlavourFlowUser> signInManager,
                 [FromForm] string returnUrl) =>
             {
                 await signInManager.SignOutAsync();
-                return TypedResults.LocalRedirect($"~/{returnUrl}");
+
+                // --- THE FIX ---
+                // We hardcode "/" (Home Page) here. 
+                // This prevents the "URL is not local" crash entirely.
+                return TypedResults.LocalRedirect("/");
             });
 
             return accountGroup;

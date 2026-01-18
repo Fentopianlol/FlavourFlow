@@ -201,3 +201,322 @@
 
     private void GoBack() => Navigation.NavigateTo("/");
 }
+
+<style>
+    /* === LAYOUT === */
+    .page-wrapper {
+        max-width: 1000px;
+        margin: 20px auto;
+        padding: 0 20px;
+        font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    }
+
+    .back-btn {
+        background: none;
+        border: none;
+        font-size: 1rem;
+        color: #666;
+        cursor: pointer;
+        margin-bottom: 15px;
+        font-weight: 600;
+    }
+
+        .back-btn:hover {
+            color: #ff6b35;
+            text-decoration: underline;
+        }
+
+    /* === HERO CARD === */
+    .hero-card {
+        background: white;
+        border-radius: 20px;
+        overflow: hidden;
+        box-shadow: 0 10px 30px rgba(0,0,0,0.08);
+        position: relative;
+        display: flex;
+        flex-direction: column;
+        margin-bottom: 40px;
+    }
+
+    .hero-image {
+        width: 100%;
+        height: 350px;
+        object-fit: cover;
+    }
+
+    .hero-content {
+        padding: 30px;
+        position: relative;
+    }
+
+        .hero-content h1 {
+            font-size: 2.5rem;
+            color: #333;
+            margin: 0 0 10px 0;
+            font-weight: 800;
+        }
+
+    .btn-save {
+        position: absolute;
+        top: 20px;
+        right: 20px;
+        background: white;
+        border: none;
+        padding: 10px 20px;
+        border-radius: 30px;
+        font-weight: bold;
+        cursor: pointer;
+        box-shadow: 0 4px 10px rgba(0,0,0,0.15);
+        transition: transform 0.2s;
+        z-index: 10;
+    }
+
+        .btn-save:hover {
+            transform: scale(1.05);
+        }
+
+        .btn-save.saved {
+            color: #e91e63;
+        }
+
+    /* Chef Badge */
+    .chef-badge {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        margin-bottom: 15px;
+        font-size: 0.95rem;
+    }
+
+    .chef-avatar {
+        font-size: 1.5rem;
+        background: #eee;
+        padding: 5px;
+        border-radius: 50%;
+    }
+
+    .chef-link {
+        color: #ff6b35;
+        text-decoration: none;
+    }
+
+        .chef-link:hover {
+            text-decoration: underline;
+        }
+
+    .rating-display {
+        font-size: 1.1rem;
+        color: #555;
+        margin-bottom: 20px;
+        display: flex;
+        align-items: center;
+        gap: 5px;
+    }
+
+        .rating-display .stars {
+            color: #ffb400;
+            font-weight: bold;
+        }
+
+    .description {
+        color: #666;
+        line-height: 1.6;
+        font-size: 1.1rem;
+    }
+
+    /* === CONTENT GRID === */
+    .content-grid {
+        display: grid;
+        grid-template-columns: 300px 1fr;
+        gap: 40px;
+    }
+
+    /* Ingredients Panel */
+    .ingredients-panel {
+        background: #fff5f0;
+        padding: 25px;
+        border-radius: 15px;
+        height: fit-content;
+    }
+
+        .ingredients-panel h3 {
+            margin-top: 0;
+            color: #c2410c;
+            border-bottom: 2px solid #ffccbc;
+            padding-bottom: 10px;
+            margin-bottom: 15px;
+        }
+
+    .ingredient-item {
+        margin-bottom: 10px;
+        display: flex;
+        gap: 10px;
+        align-items: flex-start;
+    }
+
+        .ingredient-item input {
+            margin-top: 5px;
+            accent-color: #ff6b35;
+            cursor: pointer;
+        }
+
+        .ingredient-item label {
+            cursor: pointer;
+            line-height: 1.4;
+            color: #444;
+        }
+
+    /* Instructions */
+    .steps-container h3 {
+        margin-top: 0;
+        color: #333;
+        font-size: 1.8rem;
+        margin-bottom: 20px;
+    }
+
+    .step-card {
+        display: flex;
+        gap: 20px;
+        margin-bottom: 30px;
+    }
+
+    .step-number {
+        font-weight: 900;
+        color: #ff6b35;
+        font-size: 0.8rem;
+        letter-spacing: 1px;
+        writing-mode: vertical-rl;
+        text-orientation: mixed;
+        transform: rotate(180deg);
+        height: fit-content;
+        margin-top: 5px;
+    }
+
+    .step-card p {
+        margin: 0;
+        line-height: 1.7;
+        color: #444;
+        font-size: 1.05rem;
+    }
+
+    /* === REVIEWS === */
+    .reviews-section {
+        margin-top: 60px;
+        border-top: 1px solid #eee;
+        padding-top: 40px;
+    }
+
+        .reviews-section h3 {
+            margin-bottom: 30px;
+        }
+
+    .review-form {
+        background: #f8f9fa;
+        padding: 25px;
+        border-radius: 15px;
+        margin-bottom: 40px;
+        border: 1px solid #e9ecef;
+    }
+
+        .review-form h4 {
+            margin-top: 0;
+            margin-bottom: 15px;
+        }
+
+    .star-rating-input {
+        font-size: 2rem;
+        color: #ddd;
+        margin-bottom: 15px;
+        cursor: pointer;
+    }
+
+    .star-btn {
+        transition: color 0.2s;
+    }
+
+        .star-btn:hover, .star-btn.filled {
+            color: #ffb400;
+        }
+
+    .review-form textarea {
+        width: 100%;
+        border: 1px solid #ced4da;
+        border-radius: 10px;
+        padding: 15px;
+        font-family: inherit;
+        margin-bottom: 15px;
+        resize: vertical;
+    }
+
+    .btn-submit {
+        background: #ff6b35;
+        color: white;
+        border: none;
+        padding: 10px 25px;
+        border-radius: 8px;
+        font-weight: bold;
+        cursor: pointer;
+    }
+
+        .btn-submit:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+        }
+
+    .review-card {
+        background: white;
+        padding: 20px;
+        border-radius: 12px;
+        border: 1px solid #eee;
+        margin-bottom: 15px;
+    }
+
+    .review-header {
+        display: flex;
+        justify-content: space-between;
+        margin-bottom: 8px;
+        color: #333;
+    }
+
+    .review-stars {
+        color: #ffb400;
+        font-size: 0.9rem;
+    }
+
+    .review-card p {
+        margin: 0 0 8px 0;
+        color: #555;
+        line-height: 1.5;
+    }
+
+    .review-card small {
+        color: #999;
+        font-size: 0.85rem;
+    }
+
+    .no-reviews {
+        color: #888;
+        font-style: italic;
+    }
+
+    .login-prompt a {
+        color: #ff6b35;
+        font-weight: bold;
+        text-decoration: none;
+    }
+
+    /* Responsive */
+    @@media (max-width: 768px) {
+        .content-grid {
+            grid-template-columns: 1fr;
+        }
+
+        .hero-image {
+            height: 250px;
+        }
+
+        .hero-content h1 {
+            font-size: 1.8rem;
+        }
+    }
+</style>

@@ -1,59 +1,61 @@
-﻿using FlavourFlow.Data;
+﻿using Microsoft.EntityFrameworkCore;
+using FlavourFlow.Data;
 using FlavourFlow.Domains;
-using Microsoft.EntityFrameworkCore;
 
-namespace FlavourFlow.Services // <--- FIXED: PLURAL
+namespace FlavourFlow.Services
 {
-    public class UserService(FlavourFlowContext context)
+    public class UserService
     {
-        public async Task<List<Recipe>> GetSavedRecipesAsync(string userId)
+        private readonly FlavourFlowContext _context;
+
+        public UserService(FlavourFlowContext context)
         {
-            var user = await context.Users
-                .Include(u => u.SavedRecipes)
-                    .ThenInclude(r => r.Category)
-                .FirstOrDefaultAsync(u => u.Id == userId);
-
-            return user?.SavedRecipes ?? new List<Recipe>();
-        }
-
-        public async Task<int> GetSavedCountAsync(string userId)
-        {
-            var user = await context.Users
-                .Include(u => u.SavedRecipes)
-                .FirstOrDefaultAsync(u => u.Id == userId);
-
-            return user?.SavedRecipes.Count ?? 0;
-        }
-
-        public async Task ToggleSaveRecipeAsync(string userId, int recipeId)
-        {
-            var user = await context.Users
-                .Include(u => u.SavedRecipes)
-                .FirstOrDefaultAsync(u => u.Id == userId);
-
-            var recipe = await context.Recipe.FindAsync(recipeId);
-
-            if (user != null && recipe != null)
-            {
-                if (user.SavedRecipes.Contains(recipe))
-                {
-                    user.SavedRecipes.Remove(recipe);
-                }
-                else
-                {
-                    user.SavedRecipes.Add(recipe);
-                }
-                await context.SaveChangesAsync();
-            }
+            _context = context;
         }
 
         public async Task<bool> IsRecipeSavedAsync(string userId, int recipeId)
         {
-            var user = await context.Users
-               .Include(u => u.SavedRecipes)
-               .FirstOrDefaultAsync(u => u.Id == userId);
+            return await _context.SavedRecipes
+                .AnyAsync(s => s.UserId == userId && s.RecipeId == recipeId);
+        }
 
-            return user?.SavedRecipes.Any(r => r.RecipeId == recipeId) ?? false;
+        public async Task ToggleSaveRecipeAsync(string userId, int recipeId)
+        {
+            // 1. Check if the "bookmark" exists in the SavedRecipes table
+            var existingSave = await _context.SavedRecipes
+                .FirstOrDefaultAsync(s => s.UserId == userId && s.RecipeId == recipeId);
+
+            if (existingSave != null)
+            {
+                // UNSAVE: Remove the bookmark
+                _context.SavedRecipes.Remove(existingSave);
+            }
+            else
+            {
+                // SAVE: Create a new bookmark entry
+                var newSave = new SavedRecipe
+                {
+                    UserId = userId,
+                    RecipeId = recipeId,
+                    SavedAt = DateTime.Now
+                };
+                _context.SavedRecipes.Add(newSave);
+            }
+
+            await _context.SaveChangesAsync();
+        }
+
+        public async Task<List<Recipe>> GetSavedRecipesAsync(string userId)
+        {
+            // Get recipes by joining with the SavedRecipes table
+            return await _context.SavedRecipes
+                .Where(s => s.UserId == userId)
+                .Include(s => s.Recipe)
+                    .ThenInclude(r => r.Category) // Include category info for display
+                .Include(s => s.Recipe)
+                    .ThenInclude(r => r.User)     // Include author info for display
+                .Select(s => s.Recipe!)           // Select the actual Recipe object to return
+                .ToListAsync();
         }
     }
 }

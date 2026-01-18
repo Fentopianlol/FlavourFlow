@@ -1,18 +1,51 @@
 ﻿@page "/logout"
-@using Microsoft.AspNetCore.Antiforgery
+@using Microsoft.AspNetCore.Components.Authorization
 
-<PageTitle>Logging out...</PageTitle>
+<PageTitle>Log Out - FlavourFlow</PageTitle>
 
-<div style="display:none;">
-    <form id="logoutForm" action="Account/Logout" method="post">
-        <AntiforgeryToken />
-        <input type="hidden" name="ReturnUrl" value="/" />
-        <button type="submit">Logout</button>
-    </form>
+<div class="container-fluid d-flex align-items-center justify-content-center" style="min-height: 80vh;">
+    <div class="card border-0 shadow-lg p-5 text-center" style="border-radius: 30px; max-width: 500px; width: 90%;">
+
+        <div class="mb-4">
+            <span style="font-size: 4rem;">🥺</span>
+        </div>
+
+        <h2 class="fw-bold text-dark mb-3">Leaving so soon?</h2>
+        <p class="text-muted mb-4">
+            Are you sure you want to log out? <br>
+            We'll miss your culinary adventures!
+        </p>
+
+        <div class="d-flex gap-3 justify-content-center align-items-center">
+
+            @* Cancel Button: Goes back home *@
+            <a href="/" class="btn btn-light rounded-pill px-4 fw-bold shadow-sm" style="min-width: 120px;">
+                Cancel
+            </a>
+
+            @* Logout Action: The actual POST to sign out *@
+            <form action="Account/Logout" method="post" style="margin:0;">
+                <AntiforgeryToken />
+                <input type="hidden" name="ReturnUrl" value="/" />
+
+                <button type="submit" class="btn btn-flavor rounded-pill px-4 fw-bold shadow-sm text-white" style="min-width: 120px;">
+                    Log Out
+                </button>
+            </form>
+
+        </div>
+    </div>
 </div>
 
-<script>
-    window.onload = function() {
-        document.getElementById('logoutForm').submit();
+<style>
+    .btn-flavor {
+        background-color: #ff6b35;
+        border-color: #ff6b35;
+        transition: all 0.2s;
     }
-</script>
+
+        .btn-flavor:hover {
+            background-color: #e55a2b;
+            transform: translateY(-2px);
+        }
+</style>

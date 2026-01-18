@@ -1,87 +1,46 @@
-/* =========================================
-   BLAZOR DEFAULT & MAIN LAYOUT
-   ========================================= */
+/* === 1. BRAND VARIABLES === */
+:root {
+    --primary: #ff6b35; /* Zesty Orange */
+    --primary-hover: #e85d2a;
+    --bg-app: #fdfbf7; /* Warm Cream (The FlavorFlow Aesthetic) */
+    --bg-nav: #fffcf8; /* Slightly lighter cream for Nav */
+    --text-dark: #2d3436;
+    --text-light: #636e72;
+    --border-color: #f0e6dd;
+    --font-main: 'Segoe UI', system-ui, sans-serif;
+}
+
 html, body {
-    font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
+    font-family: var(--font-main);
+    background-color: var(--bg-app);
+    color: var(--text-dark);
     margin: 0;
+    padding: 0;
 }
 
-/* Reset for the main app container */
-.page {
-    position: relative;
-    display: flex;
-    flex-direction: column;
-    min-height: 100vh;
+/* === 2. RESET DEFAULT BLAZOR STYLES === */
+/* This specifically targets the default blue gradient and removes it */
+.sidebar {
+    background-image: none !important;
+    background-color: var(--bg-nav) !important;
 }
 
-main {
-    flex: 1;
+a, .btn-link {
+    color: var(--primary);
 }
 
-/* HIDE DEFAULT BLAZOR SIDEBARS */
-.sidebar, .top-row {
-    display: none;
+/* === 3. GLOBAL UTILITIES === */
+.btn-primary {
+    background-color: var(--primary) !important;
+    border-color: var(--primary) !important;
 }
 
-/* =========================================
-   BLAZOR ERROR UI
-   ========================================= */
-#blazor-error-ui {
-    background: lightyellow;
-    bottom: 0;
-    box-shadow: 0 -1px 2px rgba(0, 0, 0, 0.2);
-    display: none;
-    left: 0;
-    padding: 0.6rem 1.25rem 0.7rem 1.25rem;
-    position: fixed;
-    width: 100%;
-    z-index: 1000;
-}
-
-    #blazor-error-ui .dismiss {
-        cursor: pointer;
-        position: absolute;
-        right: 0.75rem;
-        top: 0.5rem;
+    .btn-primary:hover {
+        background-color: var(--primary-hover) !important;
+        border-color: var(--primary-hover) !important;
     }
 
-/* =========================================
-   UTILITIES & GLOBAL COMPONENTS
-   ========================================= */
-/* Notification Banner (Fixed position works best in global) */
-#notification-banner {
-    position: fixed;
-    top: 1rem;
-    left: 50%;
-    transform: translateX(-50%);
-    background: #1a1a1a;
-    color: white;
-    padding: 0.75rem 1.5rem;
-    border-radius: 10px;
-    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
-    z-index: 1050;
-    opacity: 0;
-    transition: opacity 0.3s ease-in-out, transform 0.3s ease-in-out;
-    pointer-events: none;
-    max-width: 90%;
-    text-align: center;
+/* Fixes for validation messages */
+.valid.modified:not([type=checkbox]) {
+    outline: 1px solid var(--primary);
 }
-
-    #notification-banner.show {
-        opacity: 1;
-        transform: translateX(-50%) translateY(0);
-    }
-
-/* Global Buttons */
-.btn-flavor {
-    background-color: #ff6b35;
-    border-color: #ff6b35;
-    color: white;
-    transition: all 0.3s;
-}
-
-    .btn-flavor:hover {
-        background-color: #ff5520;
-        border-color: #ff5520;
-        color: white;
-    }

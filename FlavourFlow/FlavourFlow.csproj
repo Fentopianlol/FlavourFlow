@@ -6,14 +6,6 @@
     <ImplicitUsings>enable</ImplicitUsings>
   </PropertyGroup>
 
-  <ItemGroup>
-    <Content Remove="Components\Layout\NavMenu.razor" />
-  </ItemGroup>
-
-  <ItemGroup>
-    <None Remove="Components\Layout\NavMenu.razor.css" />
-  </ItemGroup>
-
   <!--<ItemGroup>
     <Content Include="Components\Pages\Home.razor.css" />
   </ItemGroup>-->
@@ -31,10 +23,6 @@
       <PrivateAssets>all</PrivateAssets>
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
     </PackageReference>
-  </ItemGroup>
-
-  <ItemGroup>
-    <Folder Include="Migrations\" />
   </ItemGroup>
 
 </Project>

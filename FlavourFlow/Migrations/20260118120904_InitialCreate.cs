@@ -6,7 +6,7 @@ using Microsoft.EntityFrameworkCore.Migrations;
 namespace FlavourFlow.Migrations
 {
     /// <inheritdoc />
-    public partial class FixedSchema : Migration
+    public partial class InitialCreate : Migration
     {
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
@@ -180,11 +180,13 @@ namespace FlavourFlow.Migrations
                         .Annotation("SqlServer:Identity", "1, 1"),
                     Title = table.Column<string>(type: "nvarchar(max)", nullable: false),
                     Description = table.Column<string>(type: "nvarchar(max)", nullable: false),
-                    Difficulty = table.Column<string>(type: "nvarchar(max)", nullable: false),
                     CookTime = table.Column<int>(type: "int", nullable: false),
+                    Difficulty = table.Column<string>(type: "nvarchar(max)", nullable: false),
                     ImageURL = table.Column<string>(type: "nvarchar(max)", nullable: false),
-                    CategoryId = table.Column<int>(type: "int", nullable: false),
-                    UserId = table.Column<string>(type: "nvarchar(450)", nullable: false)
+                    DateCreated = table.Column<DateTime>(type: "datetime2", nullable: false),
+                    Tags = table.Column<string>(type: "nvarchar(max)", nullable: false),
+                    CategoryId = table.Column<int>(type: "int", nullable: true),
+                    UserId = table.Column<string>(type: "nvarchar(450)", nullable: true)
                 },
                 constraints: table =>
                 {
@@ -193,14 +195,12 @@ namespace FlavourFlow.Migrations
                         name: "FK_Recipe_AspNetUsers_UserId",
                         column: x => x.UserId,
                         principalTable: "AspNetUsers",
-                        principalColumn: "Id",
-                        onDelete: ReferentialAction.Cascade);
+                        principalColumn: "Id");
                     table.ForeignKey(
                         name: "FK_Recipe_Category_CategoryId",
                         column: x => x.CategoryId,
                         principalTable: "Category",
-                        principalColumn: "CategoryId",
-                        onDelete: ReferentialAction.Cascade);
+                        principalColumn: "CategoryId");
                 });
 
             migrationBuilder.CreateTable(
@@ -271,7 +271,34 @@ namespace FlavourFlow.Migrations
                         column: x => x.RecipeId,
                         principalTable: "Recipe",
                         principalColumn: "RecipeId",
-                        onDelete: ReferentialAction.Restrict);
+                        onDelete: ReferentialAction.Cascade);
+                });
+
+            migrationBuilder.CreateTable(
+                name: "SavedRecipes",
+                columns: table => new
+                {
+                    Id = table.Column<int>(type: "int", nullable: false)
+                        .Annotation("SqlServer:Identity", "1, 1"),
+                    UserId = table.Column<string>(type: "nvarchar(450)", nullable: false),
+                    RecipeId = table.Column<int>(type: "int", nullable: false),
+                    SavedAt = table.Column<DateTime>(type: "datetime2", nullable: false)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_SavedRecipes", x => x.Id);
+                    table.ForeignKey(
+                        name: "FK_SavedRecipes_AspNetUsers_UserId",
+                        column: x => x.UserId,
+                        principalTable: "AspNetUsers",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Cascade);
+                    table.ForeignKey(
+                        name: "FK_SavedRecipes_Recipe_RecipeId",
+                        column: x => x.RecipeId,
+                        principalTable: "Recipe",
+                        principalColumn: "RecipeId",
+                        onDelete: ReferentialAction.Cascade);
                 });
 
             migrationBuilder.CreateIndex(
@@ -342,6 +369,16 @@ namespace FlavourFlow.Migrations
                 name: "IX_Review_UserId",
                 table: "Review",
                 column: "UserId");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_SavedRecipes_RecipeId",
+                table: "SavedRecipes",
+                column: "RecipeId");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_SavedRecipes_UserId",
+                table: "SavedRecipes",
+                column: "UserId");
         }
 
         /// <inheritdoc />
@@ -370,6 +407,9 @@ namespace FlavourFlow.Migrations
 
             migrationBuilder.DropTable(
                 name: "Review");
+
+            migrationBuilder.DropTable(
+                name: "SavedRecipes");
 
             migrationBuilder.DropTable(
                 name: "AspNetRoles");
