@@ -68,5 +68,12 @@ namespace FlavourFlow.Services
             context.Review.Add(review);
             await context.SaveChangesAsync();
         }
+        // Inside RecipeService.cs
+        public async Task<bool> HasUserReviewedAsync(int recipeId, string userId)
+        {
+            return await context.Review
+                .AnyAsync(r => r.RecipeId == recipeId && r.UserId == userId);
+        }  
     }
+
 }

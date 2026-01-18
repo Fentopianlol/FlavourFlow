@@ -12,8 +12,8 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace FlavourFlow.Migrations
 {
     [DbContext(typeof(FlavourFlowContext))]
-    [Migration("20260117134503_FreshStart")]
-    partial class FreshStart
+    [Migration("20260117160109_FixedSchema")]
+    partial class FixedSchema
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
@@ -404,7 +404,7 @@ namespace FlavourFlow.Migrations
                     b.HasOne("FlavourFlow.Domains.Recipe", "Recipe")
                         .WithMany("Reviews")
                         .HasForeignKey("RecipeId")
-                        .OnDelete(DeleteBehavior.Cascade)
+                        .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
 
                     b.HasOne("FlavourFlow.Domains.FlavourFlowUser", "User")

@@ -6,7 +6,7 @@ using Microsoft.EntityFrameworkCore.Migrations;
 namespace FlavourFlow.Migrations
 {
     /// <inheritdoc />
-    public partial class FreshStart : Migration
+    public partial class FixedSchema : Migration
     {
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
@@ -271,7 +271,7 @@ namespace FlavourFlow.Migrations
                         column: x => x.RecipeId,
                         principalTable: "Recipe",
                         principalColumn: "RecipeId",
-                        onDelete: ReferentialAction.Cascade);
+                        onDelete: ReferentialAction.Restrict);
                 });
 
             migrationBuilder.CreateIndex(

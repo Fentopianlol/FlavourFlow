@@ -1,4 +1,5 @@
 using FlavourFlow.Components;
+using FlavourFlow.Components;
 using FlavourFlow.Components.Account;
 using FlavourFlow.Data;
 using FlavourFlow.Domains;
@@ -53,7 +54,7 @@ using (var scope = app.Services.CreateScope())
         var context = services.GetRequiredService<FlavourFlowContext>();
 
         // This command creates the NEW database and all tables (Recipe, User, Review)
-        context.Database.EnsureCreated();
+        context.Database.Migrate();
 
         // This fills it with the sample data
         DbInitializer.Initialize(context);

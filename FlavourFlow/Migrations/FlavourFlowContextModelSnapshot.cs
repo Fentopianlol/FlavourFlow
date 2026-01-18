@@ -401,7 +401,7 @@ namespace FlavourFlow.Migrations
                     b.HasOne("FlavourFlow.Domains.Recipe", "Recipe")
                         .WithMany("Reviews")
                         .HasForeignKey("RecipeId")
-                        .OnDelete(DeleteBehavior.Cascade)
+                        .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
 
                     b.HasOne("FlavourFlow.Domains.FlavourFlowUser", "User")
