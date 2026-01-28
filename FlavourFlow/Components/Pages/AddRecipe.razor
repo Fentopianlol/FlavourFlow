@@ -9,6 +9,8 @@
 @attribute [Authorize]
 @rendermode RenderMode.InteractiveServer
 @inject RecipeService RecipeService
+@inject UserService UserService
+@inject RecipeImportService ImportService
 @inject NavigationManager Navigation
 @inject AuthenticationStateProvider AuthStateProvider
 @inject UserManager<FlavourFlowUser> UserManager
@@ -19,6 +21,10 @@
     <div class="header-section">
         <h1>🍳 Share Your Recipe</h1>
         <p>Contribute your culinary masterpiece to the world.</p>
+
+        <button class="btn-api" @onclick="LoadRandomRecipe" disabled="@isLoadingApi">
+            @(isLoadingApi ? "✨ Generating..." : "🎲 Generate Random Recipe (API)")
+        </button>
     </div>
 
     <EditForm Model="newRecipe" OnValidSubmit="HandleSubmit">
@@ -143,8 +149,8 @@
 
     private List<Category> categories = new();
     private bool isSubmitting = false;
+    private bool isLoadingApi = false;
 
-    // --- TAGS LOGIC ---
     private List<string> availableTags = new()
     {
         "Vegetarian", "Vegan", "Gluten-Free", "Spicy",
@@ -183,6 +189,27 @@
         newRecipe.Tags = string.Join(",", selectedTags);
     }
 
+    private async Task LoadRandomRecipe()
+    {
+        isLoadingApi = true;
+        var randomRecipe = await ImportService.GetRandomRecipeAsync();
+
+        if (randomRecipe != null)
+        {
+            newRecipe = randomRecipe;
+
+            if (categories.Any())
+            {
+                // Simple logic: if title contains "Chicken", pick Asian if available, else default
+                var targetCat = categories.FirstOrDefault(c => newRecipe.Title.Contains("Chicken") && c.Name == "Asian")
+                                ?? categories.FirstOrDefault();
+
+                newRecipe.CategoryId = targetCat?.CategoryId;
+            }
+        }
+        isLoadingApi = false;
+    }
+
     private async Task HandleSubmit()
     {
         isSubmitting = true;
@@ -192,11 +219,10 @@
         if (user != null)
         {
             newRecipe.UserId = user.Id;
-            newRecipe.DateCreated = DateTime.Now; // Ensure timestamp is set
+            newRecipe.DateCreated = DateTime.Now;
 
             var newId = await RecipeService.CreateRecipeAsync(newRecipe);
 
-            // --- FIX: Force Load to refresh Home Page Cache ---
             Navigation.NavigateTo("/", forceLoad: true);
         }
         isSubmitting = false;
@@ -226,6 +252,29 @@
         .header-section p {
             color: #666;
             font-size: 1.1rem;
+        }
+
+    .btn-api {
+        background: linear-gradient(135deg, #6c5ce7, #a29bfe);
+        color: white;
+        border: none;
+        padding: 10px 20px;
+        border-radius: 30px;
+        font-weight: bold;
+        cursor: pointer;
+        margin-top: 15px;
+        box-shadow: 0 4px 15px rgba(108, 92, 231, 0.3);
+        transition: transform 0.2s;
+    }
+
+        .btn-api:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(108, 92, 231, 0.4);
+        }
+
+        .btn-api:disabled {
+            background: #ccc;
+            cursor: not-allowed;
         }
 
     .form-section {
@@ -381,7 +430,6 @@
             transform: none;
         }
 
-    /* Tags Grid */
     .tags-grid {
         display: flex;
         flex-wrap: wrap;

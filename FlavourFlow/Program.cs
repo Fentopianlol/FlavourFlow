@@ -31,7 +31,7 @@ builder.Services.AddDbContext<FlavourFlowContext>(options =>
 
 builder.Services.AddDatabaseDeveloperPageExceptionFilter();
 
-builder.Services.AddIdentityCore<FlavourFlowUser>(options => options.SignIn.RequireConfirmedAccount = false) // <--- CHANGE TO FALSE
+builder.Services.AddIdentityCore<FlavourFlowUser>(options => options.SignIn.RequireConfirmedAccount = false)
     .AddRoles<IdentityRole>()
     .AddEntityFrameworkStores<FlavourFlowContext>()
     .AddSignInManager()
@@ -43,6 +43,9 @@ builder.Services.AddSingleton<IEmailSender<FlavourFlowUser>, IdentityNoOpEmailSe
 builder.Services.AddScoped<RecipeService>();
 builder.Services.AddScoped<UserService>();
 
+// --- NEW SERVICE REGISTRATION ---
+builder.Services.AddHttpClient<RecipeImportService>();
+
 var app = builder.Build();
 
 using (var scope = app.Services.CreateScope())
@@ -51,11 +54,7 @@ using (var scope = app.Services.CreateScope())
     try
     {
         var context = services.GetRequiredService<FlavourFlowContext>();
-
-        // This command creates the NEW database and all tables (Recipe, User, Review)
         context.Database.Migrate();
-
-        // This fills it with the sample data
         DbInitializer.Initialize(context);
     }
     catch (Exception ex)
