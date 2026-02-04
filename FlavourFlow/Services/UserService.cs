@@ -13,26 +13,18 @@ namespace FlavourFlow.Services
             _context = context;
         }
 
-        public async Task<bool> IsRecipeSavedAsync(string userId, int recipeId)
-        {
-            return await _context.SavedRecipes
-                .AnyAsync(s => s.UserId == userId && s.RecipeId == recipeId);
-        }
-
+        // --- EXISTING BOOKMARK METHODS ---
         public async Task ToggleSaveRecipeAsync(string userId, int recipeId)
         {
-            // 1. Check if the "bookmark" exists in the SavedRecipes table
             var existingSave = await _context.SavedRecipes
                 .FirstOrDefaultAsync(s => s.UserId == userId && s.RecipeId == recipeId);
 
             if (existingSave != null)
             {
-                // UNSAVE: Remove the bookmark
                 _context.SavedRecipes.Remove(existingSave);
             }
             else
             {
-                // SAVE: Create a new bookmark entry
                 var newSave = new SavedRecipe
                 {
                     UserId = userId,
@@ -41,21 +33,51 @@ namespace FlavourFlow.Services
                 };
                 _context.SavedRecipes.Add(newSave);
             }
-
             await _context.SaveChangesAsync();
+        }
+
+        public async Task<bool> IsRecipeSavedAsync(string userId, int recipeId)
+        {
+            return await _context.SavedRecipes
+                .AnyAsync(s => s.UserId == userId && s.RecipeId == recipeId);
         }
 
         public async Task<List<Recipe>> GetSavedRecipesAsync(string userId)
         {
-            // Get recipes by joining with the SavedRecipes table
             return await _context.SavedRecipes
                 .Where(s => s.UserId == userId)
                 .Include(s => s.Recipe)
-                    .ThenInclude(r => r.Category) // Include category info for display
-                .Include(s => s.Recipe)
-                    .ThenInclude(r => r.User)     // Include author info for display
-                .Select(s => s.Recipe!)           // Select the actual Recipe object to return
+                    .ThenInclude(r => r.Category) // Include category for display
+                .Select(s => s.Recipe)
                 .ToListAsync();
+        }
+
+        // --- NEW ADMIN METHODS ---
+
+        // 1. Get All Users for Dashboard
+        public async Task<List<FlavourFlowUser>> GetAllUsersAsync()
+        {
+            return await _context.Users.ToListAsync();
+        }
+
+        // 2. Toggle Ban (Lockout)
+        public async Task ToggleUserBanAsync(string userId)
+        {
+            var user = await _context.Users.FindAsync(userId);
+            if (user != null)
+            {
+                // If currently banned (LockoutEnd is in the future), unban them.
+                if (user.LockoutEnd.HasValue && user.LockoutEnd > DateTimeOffset.Now)
+                {
+                    user.LockoutEnd = null; // Unban
+                }
+                else
+                {
+                    // Ban for 100 years
+                    user.LockoutEnd = DateTimeOffset.Now.AddYears(100);
+                }
+                await _context.SaveChangesAsync();
+            }
         }
     }
 }

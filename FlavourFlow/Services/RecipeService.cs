@@ -13,14 +13,14 @@ namespace FlavourFlow.Services
             _context = context;
         }
 
-        // --- 1. FETCHING RECIPES ---
+        // --- 1. FETCHING & SEARCH ---
         public async Task<List<Recipe>> GetRecipesAsync()
         {
             return await _context.Recipe
                 .Include(r => r.Category)
                 .Include(r => r.User)
                 .Include(r => r.Reviews)
-                .OrderByDescending(r => r.DateCreated) // Newest First
+                .OrderByDescending(r => r.DateCreated)
                 .ToListAsync();
         }
 
@@ -42,55 +42,45 @@ namespace FlavourFlow.Services
                 .Include(r => r.Category)
                 .Include(r => r.Reviews)
                 .Where(r => r.UserId == userId)
-                .OrderByDescending(r => r.DateCreated) // Newest First
+                .OrderByDescending(r => r.DateCreated)
                 .ToListAsync();
         }
 
-        // --- 2. FILTERING ---
         public async Task<List<Recipe>> GetRecipesByFilterAsync(string categoryName)
         {
-            if (categoryName == "Everything")
-            {
-                return await GetRecipesAsync();
-            }
+            if (categoryName == "Everything") return await GetRecipesAsync();
+
             return await _context.Recipe
                 .Include(r => r.Category)
                 .Include(r => r.Reviews)
                 .Where(r => r.Category != null && r.Category.Name == categoryName)
-                .OrderByDescending(r => r.DateCreated) // Newest First
+                .OrderByDescending(r => r.DateCreated)
                 .ToListAsync();
         }
 
+        // Alias for CuisinePage/CategoryPage
         public async Task<List<Recipe>> GetRecipesByCategoryAsync(string categoryName)
         {
             return await GetRecipesByFilterAsync(categoryName);
         }
 
-        // --- 3. SEARCH ENGINE ---
         public async Task<List<Recipe>> SearchRecipesAsync(string searchText)
         {
-            if (string.IsNullOrWhiteSpace(searchText))
-            {
-                return await GetRecipesAsync();
-            }
+            if (string.IsNullOrWhiteSpace(searchText)) return await GetRecipesAsync();
 
             var lowerText = searchText.ToLower();
-
             return await _context.Recipe
                 .Include(r => r.Category)
                 .Include(r => r.Ingredients)
                 .Include(r => r.Reviews)
-                .Where(r =>
-                    r.Title.ToLower().Contains(lowerText) ||
-                    r.Description.ToLower().Contains(lowerText) ||
-                    (r.Tags != null && r.Tags.ToLower().Contains(lowerText)) ||
-                    r.Ingredients.Any(i => i.Name.ToLower().Contains(lowerText))
-                )
-                .OrderByDescending(r => r.DateCreated) // Newest First
+                .Where(r => r.Title.ToLower().Contains(lowerText) ||
+                            (r.Tags != null && r.Tags.ToLower().Contains(lowerText)) ||
+                            r.Ingredients.Any(i => i.Name.ToLower().Contains(lowerText)))
+                .OrderByDescending(r => r.DateCreated)
                 .ToListAsync();
         }
 
-        // --- 4. CREATING ---
+        // --- 2. CREATION & DELETION ---
         public async Task<List<Category>> GetCategoriesAsync()
         {
             return await _context.Category.ToListAsync();
@@ -106,13 +96,17 @@ namespace FlavourFlow.Services
             return recipe.RecipeId;
         }
 
-        // --- 5. REVIEWS ---
-        public async Task AddReviewAsync(Review review)
+        public async Task DeleteRecipeAsync(int recipeId)
         {
-            _context.Review.Add(review);
-            await _context.SaveChangesAsync();
+            var recipe = await _context.Recipe.FindAsync(recipeId);
+            if (recipe != null)
+            {
+                _context.Recipe.Remove(recipe);
+                await _context.SaveChangesAsync();
+            }
         }
 
+        // --- 3. REVIEWS ---
         public async Task AddReviewAsync(int recipeId, string userId, int rating, string comment)
         {
             var review = new Review
@@ -129,8 +123,7 @@ namespace FlavourFlow.Services
 
         public async Task<bool> HasUserReviewedAsync(int recipeId, string userId)
         {
-            return await _context.Review
-                .AnyAsync(r => r.RecipeId == recipeId && r.UserId == userId);
+            return await _context.Review.AnyAsync(r => r.RecipeId == recipeId && r.UserId == userId);
         }
 
         public async Task<List<Review>> GetReviewsByUserIdAsync(string userId)
@@ -140,6 +133,17 @@ namespace FlavourFlow.Services
                 .Where(r => r.UserId == userId)
                 .OrderByDescending(r => r.CreatedAt)
                 .ToListAsync();
+        }
+
+        // --- NEW: REVIEW MODERATION ---
+        public async Task DeleteReviewAsync(int reviewId)
+        {
+            var review = await _context.Review.FindAsync(reviewId);
+            if (review != null)
+            {
+                _context.Review.Remove(review);
+                await _context.SaveChangesAsync();
+            }
         }
     }
 }

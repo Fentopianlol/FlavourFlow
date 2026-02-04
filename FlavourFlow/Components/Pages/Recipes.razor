@@ -1,472 +1,401 @@
 ﻿@page "/recipe/{Id:int}"
-@rendermode RenderMode.InteractiveServer
-@using FlavourFlow.Services
 @using FlavourFlow.Domains
+@using FlavourFlow.Services
+@using FlavourFlow.Data
 @using Microsoft.AspNetCore.Components.Authorization
 @using Microsoft.AspNetCore.Identity
-@using FlavourFlow.Components.Account
+
+@rendermode RenderMode.InteractiveServer
 
 @inject RecipeService RecipeService
 @inject UserService UserService
-@inject NavigationManager Navigation
 @inject AuthenticationStateProvider AuthStateProvider
 @inject UserManager<FlavourFlowUser> UserManager
+@inject NavigationManager Navigation
+@inject IJSRuntime JSRuntime
 
 <PageTitle>@(recipe?.Title ?? "Loading...") - FlavorFlow</PageTitle>
 
-<div class="page-wrapper">
-    @if (recipe == null)
-    {
-        <div class="loading-state">Loading recipe...</div>
-    }
-    else
-    {
-        <button class="back-btn" @onclick="GoBack">← Back</button>
+@if (recipe == null)
+{
+    <div class="loading-state">
+        <p>🍳 Heating up the pan...</p>
+    </div>
+}
+else
+{
+    <div class="recipe-container">
 
-        <div class="hero-card">
-            <button class="btn-save @(isSaved ? "saved" : "")" @onclick="ToggleSave">
-                @(isSaved ? "❤️ Saved" : "🤍 Save")
-            </button>
-            <img src="@(string.IsNullOrEmpty(recipe.ImageURL) ? "https://images.unsplash.com/photo-1495521821757-a1efb6729352?auto=format&fit=crop&w=800&q=80" : recipe.ImageURL)"
-                 class="hero-image" alt="@recipe.Title" />
+        <div class="recipe-header">
+            <span class="category-badge">@recipe.Category?.Name</span>
+            <h1>@recipe.Title</h1>
 
-            <div class="hero-content">
-                <h1>@recipe.Title</h1>
-                <div class="chef-badge">
-                    <span class="chef-avatar">👨‍🍳</span>
-                    <span class="chef-name">
-                        Created by <a href="profile/@recipe.UserId" class="chef-link">
-                            <strong>@(recipe.User?.FirstName ?? "FlavorFlow Chef")</strong>
-                        </a>
-                    </span>
+            <div class="meta-row">
+                <a href="profile/@recipe.UserId" class="chef-link">
+                    👤 @(recipe.User?.FirstName ?? "Unknown Chef")
+                </a>
+                <span>⏱ @recipe.CookTime min</span>
+                <span>📊 @recipe.Difficulty</span>
+                <span>⭐ @(recipe.AverageRating.ToString("0.0")) (@recipe.Reviews.Count reviews)</span>
+            </div>
+
+            @if (isAdmin || isOwner)
+            {
+                <div class="admin-controls">
+                    <button class="btn-delete" @onclick="DeleteRecipe">🗑️ Delete Recipe @(isAdmin ? "(Admin)" : "")</button>
                 </div>
-                <div class="rating-display">
-                    <span class="stars">⭐ @recipe.AverageRating</span>
-                    <span class="count">(@recipe.ReviewCount reviews)</span>
-                </div>
+            }
 
-                <p class="description">@recipe.Description</p>
+            <div class="action-row">
+                <button class="btn-save @(isSaved ? "saved" : "")" @onclick="ToggleSave">
+                    @(isSaved ? "❤️ Saved" : "🤍 Save Recipe")
+                </button>
             </div>
         </div>
 
-        <div class="content-grid">
-            <aside class="ingredients-panel">
-                <h3>Ingredients</h3>
-                @foreach (var item in recipe.Ingredients)
+        <div class="recipe-hero-img" style="background-image: url('@(string.IsNullOrEmpty(recipe.ImageURL) ? "/images/default.jpg" : recipe.ImageURL)');"></div>
+
+        <div class="recipe-content-grid">
+            <div class="ingredients-panel">
+                <h3>🛒 Ingredients</h3>
+                <ul>
+                    @foreach (var ing in recipe.Ingredients)
+                    {
+                        <li><strong>@ing.Quantity</strong> @ing.Name</li>
+                    }
+                </ul>
+            </div>
+
+            <div class="instructions-panel">
+                <h3>🔥 Instructions</h3>
+                <div class="steps-list">
+                    @foreach (var step in recipe.Instructions.OrderBy(s => s.StepNumber))
+                    {
+                        <div class="step-item">
+                            <div class="step-num">@step.StepNumber</div>
+                            <div class="step-text">@step.StepDescription</div>
+                        </div>
+                    }
+                </div>
+            </div>
+        </div>
+
+        <div class="reviews-section">
+            <h3>Reviews & Ratings</h3>
+
+            @if (canReview)
+            {
+                <div class="add-review-box">
+                    <h4>How was it?</h4>
+                    <div class="star-rating">
+                        @for (int i = 1; i <= 5; i++)
+                        {
+                            var star = i;
+                            <span class="@(newRating >= star ? "filled" : "")" @onclick="() => newRating = star">★</span>
+                        }
+                    </div>
+                    <textarea class="form-control" @bind="newComment" placeholder="Share your thoughts..."></textarea>
+                    <button class="btn-submit-review" @onclick="SubmitReview">Post Review</button>
+                </div>
+            }
+
+            <div class="reviews-list">
+                @if (recipe.Reviews.Any())
                 {
-                    <div class="ingredient-item">
-                        <input type="checkbox" id="ing-@item.IngredientId">
-                        <label for="ing-@item.IngredientId"><strong>@item.Quantity</strong> @item.Name</label>
-                    </div>
+                    @foreach (var review in recipe.Reviews.OrderByDescending(r => r.CreatedAt))
+                    {
+                        <div class="review-card">
+                            <div class="review-header">
+                                <div class="reviewer-info">
+                                    <a href="profile/@review.UserId" class="reviewer-name">
+                                        <strong>@(review.User?.FirstName ?? "Foodie")</strong>
+                                    </a>
+                                    <span class="stars">@string.Concat(Enumerable.Repeat("★", review.Rating))</span>
+                                </div>
+
+                                @if (isAdmin)
+                                {
+                                    <button class="btn-delete-review" @onclick="() => DeleteReview(review.ReviewId)">
+                                        🗑️
+                                    </button>
+                                }
+                            </div>
+                            <p>@review.Comment</p>
+                            <small class="text-muted">@review.CreatedAt.ToShortDateString()</small>
+                        </div>
+                    }
                 }
-            </aside>
-
-            <div class="main-column">
-                <div class="steps-container">
-                    <h3>Instructions</h3>
-                    @foreach (var step in recipe.Instructions.OrderBy(i => i.StepNumber))
-                    {
-                        <div class="step-card">
-                            <span class="step-number">STEP @step.StepNumber</span>
-                            <p>@step.StepDescription</p>
-                        </div>
-                    }
-                </div>
-
-                <div class="reviews-section">
-                    <h3>Reviews & Ratings</h3>
-
-                    @if (user != null)
-                    {
-                        @if (!userHasReviewed)
-                        {
-                            <div class="review-form">
-                                <h4>Leave a Review</h4>
-                                <div class="star-rating-input">
-                                    @for (int i = 1; i <= 5; i++)
-                                    {
-                                        var starValue = i;
-                                        <span class="star-btn @(newRating >= starValue ? "filled" : "")"
-                                              @onclick="() => newRating = starValue">★</span>
-                                    }
-                                </div>
-                                <textarea @bind="newComment" placeholder="How was it? Share your thoughts..." rows="3"></textarea>
-                                <button class="btn-submit" @onclick="SubmitReview" disabled="@isSubmitting">
-                                    @(isSubmitting ? "Posting..." : "Post Review")
-                                </button>
-                            </div>
-                        }
-                        else
-                        {
-                            <div class="alert alert-success" style="margin-bottom: 20px; padding: 15px; background-color: #d4edda; color: #155724; border-radius: 10px;">
-                                <strong>Thanks!</strong> You have already reviewed this recipe.
-                            </div>
-                        }
-                    }
-                    else
-                    {
-                        <div class="login-prompt">
-                            <a href="Account/Login">Log in</a> to leave a review.
-                        </div>
-                    }
-
-                    <div class="reviews-list">
-                        @if (recipe.Reviews.Any())
-                        {
-                            @foreach (var review in recipe.Reviews.OrderByDescending(r => r.CreatedAt))
-                            {
-                                <div class="review-card">
-                                    <div class="review-header">
-                                        <strong>@(review.User?.FirstName ?? "User")</strong>
-                                        <span class="review-stars">
-                                            @for (int k = 0; k < review.Rating; k++)
-                                            {
-                                                <span>★</span>
-                                            }
-                                        </span>
-                                    </div>
-                                    <p>@review.Comment</p>
-                                    <small>@review.CreatedAt.ToShortDateString()</small>
-                                </div>
-                            }
-                        }
-                        else
-                        {
-                            <p class="no-reviews">No reviews yet. Be the first!</p>
-                        }
-                    </div>
-                </div>
+                else
+                {
+                    <p class="text-muted">No reviews yet. Be the first!</p>
+                }
             </div>
         </div>
-    }
-</div>
+
+    </div>
+}
 
 @code {
     [Parameter] public int Id { get; set; }
     private Recipe? recipe;
-    private FlavourFlowUser? user;
     private bool isSaved = false;
+    private bool isAdmin = false;
+    private bool isOwner = false;
+    private string? currentUserId;
 
-    // Review State
-    private bool userHasReviewed = false;
-    private bool isSubmitting = false;
+    private bool canReview = false;
     private int newRating = 5;
     private string newComment = "";
 
     protected override async Task OnInitializedAsync()
     {
-        await LoadData();
-    }
-
-    private async Task LoadData()
-    {
         recipe = await RecipeService.GetRecipeByIdAsync(Id);
+
         var authState = await AuthStateProvider.GetAuthenticationStateAsync();
+        var user = authState.User;
 
-        if (authState.User.Identity?.IsAuthenticated ?? false)
+        if (user.Identity != null && user.Identity.IsAuthenticated)
         {
-            user = await UserManager.GetUserAsync(authState.User);
-            if (user != null && recipe != null)
+            var appUser = await UserManager.GetUserAsync(user);
+            if (appUser != null)
             {
-                isSaved = await UserService.IsRecipeSavedAsync(user.Id, Id);
-                // Check if user has already reviewed
-                userHasReviewed = await RecipeService.HasUserReviewedAsync(Id, user.Id);
+                currentUserId = appUser.Id;
+                isSaved = await UserService.IsRecipeSavedAsync(currentUserId, Id);
+
+                bool hasReviewed = await RecipeService.HasUserReviewedAsync(Id, currentUserId);
+                canReview = !hasReviewed;
+
+                isAdmin = await UserManager.IsInRoleAsync(appUser, "Admin");
+                isOwner = recipe?.UserId == currentUserId;
             }
-        }
-    }
-
-    private async Task SubmitReview()
-    {
-        if (user != null && recipe != null && !string.IsNullOrWhiteSpace(newComment))
-        {
-            isSubmitting = true;
-            await RecipeService.AddReviewAsync(recipe.RecipeId, user.Id, newRating, newComment);
-
-            // Clear form
-            newComment = "";
-            newRating = 5;
-
-            // Reload data to refresh review list and update userHasReviewed status
-            await LoadData();
-            isSubmitting = false;
         }
     }
 
     private async Task ToggleSave()
     {
-        if (user == null) { Navigation.NavigateTo("Account/Login"); return; }
-        await UserService.ToggleSaveRecipeAsync(user.Id, Id);
+        if (currentUserId == null) { Navigation.NavigateTo("Account/Login"); return; }
+        await UserService.ToggleSaveRecipeAsync(currentUserId, Id);
         isSaved = !isSaved;
     }
 
-    private void GoBack() => Navigation.NavigateTo("/");
+    private async Task SubmitReview()
+    {
+        if (currentUserId == null || recipe == null) return;
+        await RecipeService.AddReviewAsync(recipe.RecipeId, currentUserId, newRating, newComment);
+        recipe = await RecipeService.GetRecipeByIdAsync(Id);
+        canReview = false;
+    }
+
+    private async Task DeleteRecipe()
+    {
+        if (recipe == null) return;
+        bool confirmed = await JSRuntime.InvokeAsync<bool>("confirm", "⚠️ Warning: Delete this recipe permanently?");
+        if (confirmed)
+        {
+            await RecipeService.DeleteRecipeAsync(recipe.RecipeId);
+            Navigation.NavigateTo("/", forceLoad: true);
+        }
+    }
+
+    // NEW: Review Deletion Logic
+    private async Task DeleteReview(int reviewId)
+    {
+        bool confirmed = await JSRuntime.InvokeAsync<bool>("confirm", "Delete this review?");
+        if (confirmed)
+        {
+            await RecipeService.DeleteReviewAsync(reviewId);
+            // Refresh data to remove the review from the UI
+            recipe = await RecipeService.GetRecipeByIdAsync(Id);
+
+            // Allow user to review again if they deleted their own review
+            if (currentUserId != null)
+            {
+                canReview = !await RecipeService.HasUserReviewedAsync(Id, currentUserId);
+            }
+        }
+    }
 }
 
 <style>
-    /* === LAYOUT === */
-    .page-wrapper {
-        max-width: 1000px;
-        margin: 20px auto;
-        padding: 0 20px;
-        font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    .recipe-container {
+        max-width: 900px;
+        margin: 0 auto;
+        padding-bottom: 50px;
     }
 
-    .back-btn {
-        background: none;
-        border: none;
-        font-size: 1rem;
-        color: #666;
-        cursor: pointer;
-        margin-bottom: 15px;
-        font-weight: 600;
+    .recipe-header {
+        text-align: center;
+        margin-bottom: 30px;
     }
 
-        .back-btn:hover {
-            color: #ff6b35;
-            text-decoration: underline;
-        }
+    h1 {
+        font-size: 2.5rem;
+        font-weight: 800;
+        color: #333;
+        margin: 10px 0;
+    }
 
-    /* === HERO CARD === */
-    .hero-card {
-        background: white;
-        border-radius: 20px;
-        overflow: hidden;
-        box-shadow: 0 10px 30px rgba(0,0,0,0.08);
-        position: relative;
+    .category-badge {
+        color: #ff6b35;
+        font-weight: bold;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+    }
+
+    .meta-row {
         display: flex;
-        flex-direction: column;
-        margin-bottom: 40px;
+        justify-content: center;
+        gap: 20px;
+        color: #666;
+        font-weight: 500;
+        margin-bottom: 20px;
     }
 
-    .hero-image {
-        width: 100%;
-        height: 350px;
-        object-fit: cover;
+    .chef-link {
+        color: #666;
+        text-decoration: none;
+        border-bottom: 1px dashed transparent;
+        transition: all 0.2s;
     }
 
-    .hero-content {
-        padding: 30px;
-        position: relative;
-    }
-
-        .hero-content h1 {
-            font-size: 2.5rem;
-            color: #333;
-            margin: 0 0 10px 0;
-            font-weight: 800;
+        .chef-link:hover {
+            color: #ff6b35;
+            border-bottom-color: #ff6b35;
         }
 
     .btn-save {
-        position: absolute;
-        top: 20px;
-        right: 20px;
         background: white;
-        border: none;
-        padding: 10px 20px;
+        border: 2px solid #ddd;
+        padding: 10px 25px;
         border-radius: 30px;
         font-weight: bold;
         cursor: pointer;
-        box-shadow: 0 4px 10px rgba(0,0,0,0.15);
-        transition: transform 0.2s;
-        z-index: 10;
+        transition: all 0.2s;
     }
+
+        .btn-save.saved {
+            background: #ffeaea;
+            border-color: #ff7675;
+            color: #d63031;
+        }
 
         .btn-save:hover {
             transform: scale(1.05);
         }
 
-        .btn-save.saved {
-            color: #e91e63;
-        }
-
-    /* Chef Badge */
-    .chef-badge {
-        display: flex;
-        align-items: center;
-        gap: 10px;
+    .admin-controls {
         margin-bottom: 15px;
-        font-size: 0.95rem;
     }
 
-    .chef-avatar {
-        font-size: 1.5rem;
-        background: #eee;
-        padding: 5px;
-        border-radius: 50%;
+    .btn-delete {
+        background-color: #ff7675;
+        color: white;
+        border: none;
+        padding: 8px 16px;
+        border-radius: 5px;
+        cursor: pointer;
+        font-weight: bold;
     }
 
-    .chef-link {
-        color: #ff6b35;
-        text-decoration: none;
-    }
-
-        .chef-link:hover {
-            text-decoration: underline;
+        .btn-delete:hover {
+            background-color: #d63031;
         }
 
-    .rating-display {
-        font-size: 1.1rem;
-        color: #555;
-        margin-bottom: 20px;
-        display: flex;
-        align-items: center;
-        gap: 5px;
+    .recipe-hero-img {
+        width: 100%;
+        height: 400px;
+        background-size: cover;
+        background-position: center;
+        border-radius: 20px;
+        margin-bottom: 40px;
+        box-shadow: 0 10px 30px rgba(0,0,0,0.1);
     }
 
-        .rating-display .stars {
-            color: #ffb400;
-            font-weight: bold;
-        }
-
-    .description {
-        color: #666;
-        line-height: 1.6;
-        font-size: 1.1rem;
-    }
-
-    /* === CONTENT GRID === */
-    .content-grid {
+    .recipe-content-grid {
         display: grid;
-        grid-template-columns: 300px 1fr;
+        grid-template-columns: 1fr 2fr;
         gap: 40px;
     }
 
-    /* Ingredients Panel */
-    .ingredients-panel {
-        background: #fff5f0;
-        padding: 25px;
-        border-radius: 15px;
-        height: fit-content;
+    .ingredients-panel ul {
+        list-style: none;
+        padding: 0;
     }
 
-        .ingredients-panel h3 {
-            margin-top: 0;
-            color: #c2410c;
-            border-bottom: 2px solid #ffccbc;
-            padding-bottom: 10px;
-            margin-bottom: 15px;
-        }
+    .ingredients-panel li {
+        padding: 10px 0;
+        border-bottom: 1px solid #eee;
+    }
 
-    .ingredient-item {
-        margin-bottom: 10px;
+    .step-item {
         display: flex;
-        gap: 10px;
-        align-items: flex-start;
-    }
-
-        .ingredient-item input {
-            margin-top: 5px;
-            accent-color: #ff6b35;
-            cursor: pointer;
-        }
-
-        .ingredient-item label {
-            cursor: pointer;
-            line-height: 1.4;
-            color: #444;
-        }
-
-    /* Instructions */
-    .steps-container h3 {
-        margin-top: 0;
-        color: #333;
-        font-size: 1.8rem;
+        gap: 15px;
         margin-bottom: 20px;
     }
 
-    .step-card {
+    .step-num {
+        background: #333;
+        color: white;
+        width: 30px;
+        height: 30px;
+        border-radius: 50%;
         display: flex;
-        gap: 20px;
-        margin-bottom: 30px;
+        align-items: center;
+        justify-content: center;
+        font-weight: bold;
+        flex-shrink: 0;
     }
 
-    .step-number {
-        font-weight: 900;
-        color: #ff6b35;
-        font-size: 0.8rem;
-        letter-spacing: 1px;
-        writing-mode: vertical-rl;
-        text-orientation: mixed;
-        transform: rotate(180deg);
-        height: fit-content;
-        margin-top: 5px;
-    }
-
-    .step-card p {
-        margin: 0;
-        line-height: 1.7;
+    .step-text {
+        line-height: 1.6;
         color: #444;
-        font-size: 1.05rem;
     }
 
-    /* === REVIEWS === */
     .reviews-section {
         margin-top: 60px;
         border-top: 1px solid #eee;
         padding-top: 40px;
     }
 
-        .reviews-section h3 {
-            margin-bottom: 30px;
-        }
-
-    .review-form {
-        background: #f8f9fa;
-        padding: 25px;
+    .add-review-box {
+        background: #f9f9f9;
+        padding: 20px;
         border-radius: 15px;
-        margin-bottom: 40px;
-        border: 1px solid #e9ecef;
+        margin-bottom: 30px;
     }
 
-        .review-form h4 {
-            margin-top: 0;
-            margin-bottom: 15px;
-        }
-
-    .star-rating-input {
-        font-size: 2rem;
+    .star-rating span {
+        font-size: 1.5rem;
         color: #ddd;
-        margin-bottom: 15px;
         cursor: pointer;
+        margin-right: 5px;
     }
 
-    .star-btn {
-        transition: color 0.2s;
-    }
-
-        .star-btn:hover, .star-btn.filled {
+        .star-rating span.filled {
             color: #ffb400;
         }
 
-    .review-form textarea {
+    .form-control {
         width: 100%;
-        border: 1px solid #ced4da;
+        padding: 10px;
+        margin: 10px 0;
         border-radius: 10px;
-        padding: 15px;
-        font-family: inherit;
-        margin-bottom: 15px;
-        resize: vertical;
+        border: 1px solid #ddd;
     }
 
-    .btn-submit {
-        background: #ff6b35;
+    .btn-submit-review {
+        background: #333;
         color: white;
+        padding: 10px 20px;
         border: none;
-        padding: 10px 25px;
-        border-radius: 8px;
-        font-weight: bold;
+        border-radius: 20px;
         cursor: pointer;
     }
-
-        .btn-submit:disabled {
-            background: #ccc;
-            cursor: not-allowed;
-        }
 
     .review-card {
         background: white;
         padding: 20px;
-        border-radius: 12px;
+        border-radius: 15px;
         border: 1px solid #eee;
         margin-bottom: 15px;
     }
@@ -474,49 +403,47 @@
     .review-header {
         display: flex;
         justify-content: space-between;
-        margin-bottom: 8px;
-        color: #333;
+        align-items: flex-start;
+        margin-bottom: 5px;
     }
 
-    .review-stars {
-        color: #ffb400;
-        font-size: 0.9rem;
+    .reviewer-info {
+        display: flex;
+        gap: 10px;
+        align-items: center;
     }
 
-    .review-card p {
-        margin: 0 0 8px 0;
-        color: #555;
-        line-height: 1.5;
-    }
-
-    .review-card small {
-        color: #999;
-        font-size: 0.85rem;
-    }
-
-    .no-reviews {
-        color: #888;
-        font-style: italic;
-    }
-
-    .login-prompt a {
-        color: #ff6b35;
-        font-weight: bold;
+    .reviewer-name {
         text-decoration: none;
+        color: #2d3436;
     }
 
-    /* Responsive */
+    .stars {
+        color: #ffb400;
+    }
+
+    /* NEW: Review Delete Button */
+    .btn-delete-review {
+        background: none;
+        border: none;
+        cursor: pointer;
+        font-size: 1.2rem;
+        opacity: 0.5;
+        transition: opacity 0.2s;
+    }
+
+        .btn-delete-review:hover {
+            opacity: 1;
+            transform: scale(1.1);
+        }
+
     @@media (max-width: 768px) {
-        .content-grid {
+        .recipe-content-grid {
             grid-template-columns: 1fr;
         }
 
-        .hero-image {
+        .recipe-hero-img {
             height: 250px;
-        }
-
-        .hero-content h1 {
-            font-size: 1.8rem;
         }
     }
 </style>

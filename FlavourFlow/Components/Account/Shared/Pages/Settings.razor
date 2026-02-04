@@ -80,6 +80,7 @@
     private string? statusMessage;
     private bool isError = false;
 
+    // FIX: Using SupplyParameterFromForm to bind data correctly during POST requests
     [SupplyParameterFromForm(FormName = "profile")]
     private ProfileModel ProfileInput { get; set; } = new();
 
@@ -97,7 +98,7 @@
             return;
         }
 
-        // Load initial data if form hasn't been submitted yet
+        // Only load data from DB if the form is empty (first load), otherwise keep user input
         if (string.IsNullOrEmpty(ProfileInput.FirstName))
         {
             ProfileInput = new ProfileModel
@@ -142,7 +143,7 @@
             // Refresh cookie so the new name/email is recognized immediately
             await SignInManager.RefreshSignInAsync(user);
 
-            // --- REDIRECT TO HOME ---
+            // Redirect to Home
             Navigation.NavigateTo("/", forceLoad: true);
         }
         else
@@ -165,7 +166,7 @@
             PasswordInput = new(); // Clear form
             await SignInManager.RefreshSignInAsync(user);
 
-            // --- REDIRECT TO HOME (ADDED THIS) ---
+            // Redirect to Home
             Navigation.NavigateTo("/", forceLoad: true);
         }
         else

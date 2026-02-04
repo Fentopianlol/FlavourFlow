@@ -23,6 +23,16 @@
 
         <AuthorizeView>
             <Authorized>
+                <AuthorizeView Roles="Admin" Context="adminContext">
+                    <div class="nav-group">
+                        <span class="group-label">Admin Zone</span>
+                        <NavLink class="nav-link" href="admin/dashboard">
+                            <span class="icon">🛡️</span> <span class="text">Dashboard</span>
+                        </NavLink>
+                    </div>
+                    <div class="nav-separator"></div>
+                </AuthorizeView>
+
                 <div class="nav-group">
                     <span class="group-label">Chef's Corner</span>
                     <NavLink class="nav-link" href="add-recipe">

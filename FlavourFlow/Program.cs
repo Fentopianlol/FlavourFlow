@@ -32,7 +32,7 @@ builder.Services.AddDbContext<FlavourFlowContext>(options =>
 builder.Services.AddDatabaseDeveloperPageExceptionFilter();
 
 builder.Services.AddIdentityCore<FlavourFlowUser>(options => options.SignIn.RequireConfirmedAccount = false)
-    .AddRoles<IdentityRole>()
+    .AddRoles<IdentityRole>() // <--- ENSURE THIS IS HERE
     .AddEntityFrameworkStores<FlavourFlowContext>()
     .AddSignInManager()
     .AddDefaultTokenProviders();
@@ -42,20 +42,22 @@ builder.Services.AddSingleton<IEmailSender<FlavourFlowUser>, IdentityNoOpEmailSe
 // Custom Services
 builder.Services.AddScoped<RecipeService>();
 builder.Services.AddScoped<UserService>();
-
-// --- NEW SERVICE REGISTRATION ---
 builder.Services.AddHttpClient<RecipeImportService>();
 
 var app = builder.Build();
 
+// 2. Database Initialization (Updated)
 using (var scope = app.Services.CreateScope())
 {
     var services = scope.ServiceProvider;
     try
     {
         var context = services.GetRequiredService<FlavourFlowContext>();
-        context.Database.Migrate();
-        DbInitializer.Initialize(context);
+        var userManager = services.GetRequiredService<UserManager<FlavourFlowUser>>();
+        var roleManager = services.GetRequiredService<RoleManager<IdentityRole>>();
+
+        // Call the new Async Initializer
+        await DbInitializer.InitializeAsync(context, userManager, roleManager);
     }
     catch (Exception ex)
     {
