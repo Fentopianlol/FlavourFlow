@@ -13,7 +13,9 @@ namespace FlavourFlow.Services
             _context = context;
         }
 
-        // --- 1. FETCHING & SEARCH ---
+        // ==========================================================
+        // 1. FETCHING & SEARCH
+        // ==========================================================
         public async Task<List<Recipe>> GetRecipesAsync()
         {
             return await _context.Recipe
@@ -58,7 +60,7 @@ namespace FlavourFlow.Services
                 .ToListAsync();
         }
 
-        // Alias for CuisinePage/CategoryPage
+        // Alias used by CategoryPage
         public async Task<List<Recipe>> GetRecipesByCategoryAsync(string categoryName)
         {
             return await GetRecipesByFilterAsync(categoryName);
@@ -80,7 +82,9 @@ namespace FlavourFlow.Services
                 .ToListAsync();
         }
 
-        // --- 2. CREATION & DELETION ---
+        // ==========================================================
+        // 2. CREATION, EDITING & DELETION
+        // ==========================================================
         public async Task<List<Category>> GetCategoriesAsync()
         {
             return await _context.Category.ToListAsync();
@@ -96,6 +100,13 @@ namespace FlavourFlow.Services
             return recipe.RecipeId;
         }
 
+        // [MISSING METHOD FIX] - This handles the "Save Changes" from EditRecipe.razor
+        public async Task UpdateRecipeAsync(Recipe recipe)
+        {
+            _context.Recipe.Update(recipe);
+            await _context.SaveChangesAsync();
+        }
+
         public async Task DeleteRecipeAsync(int recipeId)
         {
             var recipe = await _context.Recipe.FindAsync(recipeId);
@@ -106,7 +117,9 @@ namespace FlavourFlow.Services
             }
         }
 
-        // --- 3. REVIEWS ---
+        // ==========================================================
+        // 3. REVIEWS & RATINGS
+        // ==========================================================
         public async Task AddReviewAsync(int recipeId, string userId, int rating, string comment)
         {
             var review = new Review
@@ -135,7 +148,6 @@ namespace FlavourFlow.Services
                 .ToListAsync();
         }
 
-        // --- NEW: REVIEW MODERATION ---
         public async Task DeleteReviewAsync(int reviewId)
         {
             var review = await _context.Review.FindAsync(reviewId);

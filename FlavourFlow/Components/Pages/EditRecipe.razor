@@ -1,0 +1,229 @@
+﻿@page "/edit-recipe/{Id:int}"
+@using FlavourFlow.Domains
+@using FlavourFlow.Services
+@using FlavourFlow.Data
+@using Microsoft.AspNetCore.Authorization
+@using Microsoft.AspNetCore.Identity
+@using Microsoft.AspNetCore.Components.Authorization
+
+@attribute [Authorize]
+@rendermode RenderMode.InteractiveServer
+
+@inject RecipeService RecipeService
+@inject NavigationManager Navigation
+@inject AuthenticationStateProvider AuthStateProvider
+@inject UserManager<FlavourFlowUser> UserManager
+
+<PageTitle>Edit Recipe - FlavorFlow</PageTitle>
+
+<div class="edit-container">
+    <h1>✏️ Edit Recipe</h1>
+
+    @if (recipe == null)
+    {
+        <p>Loading...</p>
+    }
+    else if (!isAllowed)
+    {
+        <div class="alert alert-danger">⛔ You do not have permission to edit this recipe.</div>
+    }
+    else
+    {
+        <EditForm Model="recipe" OnValidSubmit="HandleValidSubmit" FormName="editRecipeForm">
+            <DataAnnotationsValidator />
+            <ValidationSummary />
+
+            <div class="form-group">
+                <label>Recipe Title</label>
+                <InputText @bind-Value="recipe.Title" class="form-control" />
+            </div>
+
+            <div class="form-group">
+                <label>Description</label>
+                <InputTextArea @bind-Value="recipe.Description" class="form-control" rows="3" />
+            </div>
+
+            <div class="row">
+                <div class="col">
+                    <label>Cook Time (min)</label>
+                    <InputNumber @bind-Value="recipe.CookTime" class="form-control" />
+                </div>
+                <div class="col">
+                    <label>Difficulty</label>
+                    <InputSelect @bind-Value="recipe.Difficulty" class="form-control">
+                        <option value="Easy">Easy</option>
+                        <option value="Medium">Medium</option>
+                        <option value="Hard">Hard</option>
+                    </InputSelect>
+                </div>
+            </div>
+
+            <div class="form-group">
+                <label>Image URL</label>
+                <InputText @bind-Value="recipe.ImageURL" class="form-control" placeholder="https://..." />
+            </div>
+
+            @if (!string.IsNullOrEmpty(recipe.ImageURL))
+            {
+                <div class="img-preview" style="background-image: url('@recipe.ImageURL')"></div>
+            }
+
+            <div class="btn-row">
+                <button type="button" class="btn-cancel" @onclick="Cancel">Cancel</button>
+                <button type="submit" class="btn-save">💾 Save Changes</button>
+            </div>
+        </EditForm>
+    }
+</div>
+
+@code {
+    [Parameter] public int Id { get; set; }
+
+    [SupplyParameterFromForm]
+    private Recipe? recipe { get; set; }
+
+    private bool isAllowed = false;
+
+    protected override async Task OnInitializedAsync()
+    {
+        // Only load from DB if it's the initial GET request (recipe is null)
+        if (recipe == null)
+        {
+            var dbRecipe = await RecipeService.GetRecipeByIdAsync(Id);
+            if (dbRecipe != null)
+            {
+                // Check Permissions
+                var authState = await AuthStateProvider.GetAuthenticationStateAsync();
+                var user = authState.User;
+                var appUser = await UserManager.GetUserAsync(user);
+
+                if (appUser != null)
+                {
+                    // Allow if Owner OR Admin
+                    if (dbRecipe.UserId == appUser.Id || await UserManager.IsInRoleAsync(appUser, "Admin"))
+                    {
+                        recipe = dbRecipe;
+                        isAllowed = true;
+                    }
+                }
+            }
+        }
+    }
+
+    private async Task HandleValidSubmit()
+    {
+        if (recipe != null && isAllowed)
+        {
+            await RecipeService.UpdateRecipeAsync(recipe);
+            Navigation.NavigateTo($"recipe/{recipe.RecipeId}");
+        }
+    }
+
+    private void Cancel()
+    {
+        Navigation.NavigateTo($"recipe/{Id}");
+    }
+}
+
+<style>
+    .edit-container {
+        max-width: 600px;
+        margin: 40px auto;
+        padding: 30px;
+        background: white;
+        border-radius: 20px;
+        box-shadow: 0 4px 20px rgba(0,0,0,0.05);
+    }
+
+    h1 {
+        text-align: center;
+        margin-bottom: 30px;
+        color: #333;
+    }
+
+    .form-group {
+        margin-bottom: 20px;
+    }
+
+    label {
+        font-weight: 600;
+        color: #666;
+        display: block;
+        margin-bottom: 8px;
+    }
+
+    .form-control {
+        width: 100%;
+        padding: 12px;
+        border: 2px solid #eee;
+        border-radius: 10px;
+        font-size: 1rem;
+        box-sizing: border-box;
+    }
+
+    .row {
+        display: flex;
+        gap: 20px;
+        margin-bottom: 20px;
+    }
+
+    .col {
+        flex: 1;
+    }
+
+    .img-preview {
+        width: 100%;
+        height: 200px;
+        background-size: cover;
+        background-position: center;
+        border-radius: 10px;
+        margin-bottom: 20px;
+        border: 2px solid #eee;
+    }
+
+    .btn-row {
+        display: flex;
+        gap: 15px;
+        margin-top: 30px;
+    }
+
+    .btn-save {
+        flex: 1;
+        background: #ff6b35;
+        color: white;
+        padding: 12px;
+        border: none;
+        border-radius: 10px;
+        font-weight: bold;
+        font-size: 1rem;
+        cursor: pointer;
+    }
+
+        .btn-save:hover {
+            background: #e55a2b;
+        }
+
+    .btn-cancel {
+        flex: 1;
+        background: #f1f2f6;
+        color: #333;
+        padding: 12px;
+        border: none;
+        border-radius: 10px;
+        font-weight: bold;
+        cursor: pointer;
+    }
+
+        .btn-cancel:hover {
+            background: #dfe4ea;
+        }
+
+    .alert {
+        padding: 15px;
+        background: #ffeaea;
+        color: #d63031;
+        border-radius: 10px;
+        text-align: center;
+        font-weight: bold;
+    }
+</style>
